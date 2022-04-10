@@ -9,40 +9,52 @@ library(kableExtra)
 library(leaflet)
 library(plotly)
 library(dygraphs)
+library(xts)
 
 
 # data loadin and cleaning ------------------------------------------------
 
-covid_data <- read.csv("https://covid.ourworldindata.org/data/owid-covid-data.csv", stringsAsFactors = FALSE, check.names =  FALSE)
-
-covid_data = covid_data %>% 
-    mutate(
-        date = ymd(date)
-    )
+## load data from global.R
 
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
+
     
-    
-    newCases_subset = reactive({
-        # get country iso code from input$iso from ui.R
-        iso = input$iso
-        
-        # subset of new cases
-        covid_data %>% 
-            select(date, iso_code, location, new_cases) %>% 
-            filter(iso_code == iso)
+    # world map of covid data
+    output$covid_map <- renderLeaflet({
+        # selectedVar = input$num_var_map
+        # pal = colorNumeric(palette = "OrRd",
+        #                    domain = covid_data$selectedVar)
+        leaflet() %>%
+            addTiles()
+        # leaflet() %>% 
+        #     addTiles() %>%
+        #     addPolygons(stroke = FALSE,
+        #                 smoothFactor = 0.2,
+        #                 fillOpacity = 0.7,
+        #                 color = ~pal(selectedVar))
     })
-
-    output$newCasesLine <- renderDygraph({
+    
+    output$time_plot <- renderDygraph({
+        varname = input$plot_var
+        countries = input$plot_countries
         
+        # subset dataset into selected variable and time, by countries (iso_code)
+        covid_subset = covid_data %>% 
+            select(date, iso_code, varname) %>% 
+            filter(iso_code %in% countries) %>% 
+            pivot_wider(names_from = iso_code,
+                        values_from = new_cases)
+        
+        # create time series
+        subset.xts = xts(select(covid_subset, !date), 
+                           order.by = covid_subset$date)
         # time series plot of new cases vs time (time series)
-        newCases_subset() %>% 
+        subset.xts %>% 
             dygraph() %>% 
-            dySeries("new_cases") %>% 
-            dyRangeSelector()
-
+            dyRangeSelector() %>% 
+            dyHighlight()
     })
 
 })
