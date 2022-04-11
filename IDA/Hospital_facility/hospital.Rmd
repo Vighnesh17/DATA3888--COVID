@@ -1,0 +1,151 @@
+---
+title: "Hospital"
+author: "Xinzhi Wang"
+date: '2022-04-08'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r cars}
+library(tidyverse)
+library(readxl)
+library(ggplot2)
+library(ggthemes)
+library(maps)
+library(DT)
+library(RSpectra)
+library(GEOquery) 
+library(R.utils)
+library(tuneR)
+library(randomForest)
+library(stringdist)
+library(plotly)
+```
+
+# Load Data
+```{r}
+covid <- read.csv("owid-covid-data.csv")
+covid_hospital <- read.csv("current-covid-patients-hospital.csv")
+covid_icu <- read.csv("current-covid-patients-icu.csv")
+icu <- read.csv("intensive-care-beds-per-100000.csv")
+doctor <- read.csv("doctors.csv")
+nurse <- read.csv("nurse.csv")
+health_spend <- read.csv("health_spending.csv")
+```
+
+```{r}
+unique(covid$location)
+```
+
+```{r}
+unique(covid_icu$Entity)
+```
+
+```{r}
+unique(covid_hospital$Entity)
+```
+
+
+```{r}
+in_icu_data <- covid %>%
+  filter(location %in% unique(covid_icu$Entity)) %>%
+  filter(location %in% unique(icu$Entity)) %>% 
+  select("iso_code", "continent", "location","population", "population_density", "median_age", "aged_65_older", "aged_70_older", "gdp_per_capita", "extreme_poverty") %>% 
+  distinct()
+unique(in_icu_data$location)
+
+temp_data <- aggregate(covid_icu$Daily.ICU.occupancy, by = list(covid_icu$Entity), max)
+names(temp_data) <- c("location", "Daily.ICU.occupancy")
+
+
+in_icu_data <- merge(in_icu_data, temp_data, by.x = "location", by.y = "location")
+
+icu_room <- aggregate(icu$Intensive.care.beds..per.100.000., by = list(icu$Entity), max)
+names(icu_room) <- c("Entity", "Intensive.care.beds..per.100.000")
+
+in_icu_data <- merge(in_icu_data, icu_room, by.x = "location", by.y = "Entity")
+
+in_icu_data$icu_capacity <- as.integer((in_icu_data$population / 100000) * in_icu_data$Intensive.care.beds..per.100.000)
+
+in_icu_data$prepare <- in_icu_data$icu_capacity - in_icu_data$Daily.ICU.occupancy
+```
+
+```{r}
+ggplot(in_icu_data) + 
+  geom_point(aes(x = location, y = prepare / icu_capacity)) + 
+  geom_hline(yintercept=0) + 
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+
+```
+
+```{r}
+ggplot(in_icu_data) + 
+  geom_point(aes(x = location, y = Daily.ICU.occupancy / icu_capacity)) + 
+  geom_hline(yintercept=1) + 
+  theme(axis.text.x = element_text(angle = 45, hjust=1)) + 
+  ggtitle("The ratio of daily maximum ICU over ICU capcity") + 
+  ylab("Ratio")
+
+```
+
+
+```{r}
+in_hospital_data <- covid[!is.na(covid$hospital_beds_per_thousand), ] %>%
+  filter(location %in% unique(covid_hospital$Entity)) %>%
+  select("iso_code", "continent", "location","population", "population_density", "median_age", "aged_65_older", "aged_70_older", "gdp_per_capita", "hospital_beds_per_thousand") %>% 
+  distinct()
+unique(in_hospital_data$location)
+
+temp_data <- aggregate(covid_hospital$Daily.hospital.occupancy, by = list(covid_hospital$Entity), max)
+names(temp_data) <- c("location", "Daily.hospital.occupancy")
+
+
+in_hospital_data <- merge(in_hospital_data, temp_data, by.x = "location", by.y = "location")
+
+in_hospital_data$hospital_capacity <- as.integer(in_hospital_data$hospital_beds_per_thousand * 1000)
+
+in_hospital_data$prepare <- in_hospital_data$hospital_capacity - in_hospital_data$Daily.hospital.occupancy
+```
+
+
+```{r}
+ggplot(in_hospital_data) + 
+  geom_point(aes(x = location, y = prepare / hospital_capacity)) + 
+  geom_hline(yintercept=0) + 
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+```
+
+
+```{r}
+ggplot(in_hospital_data) + 
+  geom_point(aes(x = location, y = Daily.hospital.occupancy  / hospital_capacity)) + 
+  geom_hline(yintercept=1) + 
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+```
+
+
+
+```{r}
+temp_data <- doctor[order(doctor$ï..LOCATION, -doctor$TIME),]
+
+temp_data <- temp_data[!duplicated(temp_data$ï..LOCATION),]
+
+icu_doctor_data <- merge(in_icu_data, temp_data, by.x = "iso_code", by.y = "ï..LOCATION")
+
+```
+
+
+```{r}
+l_m <- lm(formula = Daily.ICU.occupancy ~ population_density + gdp_per_capita + icu_capacity + Value,
+                  data = icu_doctor_data)
+summary(l_m)
+```
+
+
+```{r}
+plot(icu_doctor_data$Value, l_m$residuals, xlab = "Number of doctors per 1,000", ylab = "Residuals")
+abline(h = 0, col = "blue")
+```

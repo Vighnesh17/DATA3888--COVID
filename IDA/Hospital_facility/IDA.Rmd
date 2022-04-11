@@ -1,0 +1,95 @@
+---
+title: "IDA"
+author: "Xinzhi Wang"
+date: '2022-04-01'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Questions
+- Question 1: Which countries are the best prepared to resist COVID-19 based on attributes
+  - Beds in hospital
+  - hand wash facilities
+  - Life expatency
+
+- Question 2: How quickly did the outbreak spread in every country and what contributes to the spread the most
+  - Need to calculate the speed for new_cases increasing -  maybe using slop? or difference (in the lab)
+  - time
+
+- Question 3: Investigate new cases, ICU admissions, death rate in countries
+  - owid-data-set
+
+- Question 4: What impact did the vaccines have on covid outcomes 
+  - vaccine rate vs. spread rate
+
+- Question 5: Analyse correlation between countries healthcare outcomes (healthcare index) and COVID-19 outcomes
+
+
+```{r library, message=FALSE, results='hide', warning=FALSE}
+# Load library
+library(tidyverse)
+library(readxl)
+library(tibble)
+library(janitor)
+library(reshape2)
+library(ggplot2)
+library(ggthemes)
+library(maps)
+library(proxy)
+library(DT)
+library(RSpectra)
+library(GEOquery) 
+library(R.utils)
+library(viridis)
+library(tuneR)
+library(randomForest)
+library(stringdist)
+```
+
+## Read in the data
+```{r}
+covid <- read.csv("owid-covid-data.csv")
+mobility <- read.csv("Global_Mobility_Report.csv")
+code <- read.csv("countries_codes_and_coordinates.csv")
+```
+
+```{r}
+countries <- unique(covid$location[covid$location %in% mobility$country_region])
+countries
+```
+
+```{r}
+hosp <- aggregate(covid[which(!is.na(covid$hospital_beds_per_thousand)), ]$hospital_beds_per_thousand, list(covid[which(!is.na(covid$hospital_beds_per_thousand)), ]$location), FUN=mean)
+names(hosp) <- c("location", "hospital_beds_per_thousand")
+
+total_covid <- covid[covid$date == "2022-03-30", ] %>% 
+  select(location, total_cases)
+
+hosp_data <- merge(hosp, total_covid, by="location")
+
+hosp_data
+```
+
+```{r}
+ggplot(hosp_data) + 
+  geom_point(aes(x = hospital_beds_per_thousand, y = total_cases)) + scale_y_continuous(trans='log2')
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
