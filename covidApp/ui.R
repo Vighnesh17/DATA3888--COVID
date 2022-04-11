@@ -23,9 +23,9 @@ shinyUI(
         
         tabPanel(
             "Interactive World Map",
-            class = "outer",
+            # class = "outer",
             
-            # fillPage(
+            fluidPage(
                 # the underlying map, takes up the whole page
                 # here map output
                 leafletOutput("covid_map"),
@@ -34,20 +34,21 @@ shinyUI(
                 absolutePanel(
                     id = "map_userInputs",
                     class = "panel panel-default",
-                    top = 0,
-                    right = 0,
+                    top = 85,
+                    right = 40,
                     width = "auto",
                     height = "auto",
-                    style = 'opacity: 0.9',
                     position = "relative",
+                    style = "opacity: 0.95;",
                     wellPanel("Variables to map",
+                              style = "opacity: 1;",
                               # eg. display numerical variable on heat map
                               selectInput(inputId = "num_var_map",
                                           label = "Numerical Variable",
                                           choices = num_vars)
                     )
                 )
-            # )
+            )
             
         ),
         
