@@ -21,35 +21,30 @@ shinyUI(
         "DATA3888 COVID-19 Data Analysis", id = "navbar",
         theme = bs_theme(version = 4, bootswatch = "minty"),
         
-        
         # Map tab page ------------------------------------------------------------
         
         tabPanel(
             "Interactive World Map",
-            # class = "outer",
+            style = "position: relative;",
             
-            fluidPage(
-                # the underlying map, takes up the whole page
-                # here map output
-                leafletOutput("covid_map"),
-                
-                # the floating window for user input on top of map
-                absolutePanel(
-                    id = "map_userInputs",
-                    class = "panel panel-default",
-                    top = 85,
-                    right = 40,
-                    width = "auto",
-                    height = "auto",
-                    position = "relative",
-                    style = "opacity: 0.95;",
-                    wellPanel("Variables to map",
-                              style = "opacity: 1;",
-                              # eg. display numerical variable on heat map
-                              selectInput(inputId = "num_var_map",
-                                          label = "Numerical Variable",
-                                          choices = num_vars)
-                    )
+            # the underlying map, takes up the whole page
+            # here map output
+            leafletOutput("covid_map"),
+            
+            # the floating window for user input on top of map
+            absolutePanel(
+                id = "map_userInputs",
+                top = 10,
+                right = 10,
+                width = "auto",
+                height = "auto",
+                draggable = FALSE,
+                wellPanel("Variables to map",
+                          style = "opacity: 0.6; background-color: #ffff;",
+                          # eg. display numerical variable on heat map
+                          selectInput(inputId = "num_var_map",
+                                      label = "Numerical Variable",
+                                      choices = num_vars)
                 )
             )
             
