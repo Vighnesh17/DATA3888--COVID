@@ -1,5 +1,11 @@
+library(shiny)
 library(tidyverse)
 library(lubridate)
+library(kableExtra)
+library(leaflet)
+library(plotly)
+library(dygraphs)
+library(xts)
 
 ## load in covid data, enable if there is need to initiate covid_data df
 # covid_data <- read.csv("https://covid.ourworldindata.org/data/owid-covid-data.csv", stringsAsFactors = FALSE, check.names =  FALSE)

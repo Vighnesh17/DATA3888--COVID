@@ -9,6 +9,9 @@ library(lubridate)
 library(kableExtra)
 library(leaflet)
 library(bslib)
+library(plotly)
+library(dygraphs)
+library(xts)
 
 # Define UI for application that draws a histogram
 shinyUI(
