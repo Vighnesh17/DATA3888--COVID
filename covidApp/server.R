@@ -45,11 +45,11 @@ shinyServer(function(input, output) {
             select(date, iso_code, varname) %>% 
             filter(iso_code %in% countries) %>% 
             pivot_wider(names_from = iso_code,
-                        values_from = new_cases)
+                        values_from = varname)
         
         # create time series
         subset.xts = xts(select(covid_subset, !date), 
-                           order.by = covid_subset$date)
+                         order.by = covid_subset$date)
         # time series plot of new cases vs time (time series)
         subset.xts %>% 
             dygraph() %>% 
