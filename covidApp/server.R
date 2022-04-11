@@ -56,5 +56,13 @@ shinyServer(function(input, output) {
             dyRangeSelector() %>% 
             dyHighlight()
     })
+    
+    output$recommendation <- renderText({
+        "dummy text"
+    })
+    
+    output$dummyPlot <- renderPlot({
+        plot(mtcars$wt, mtcars$qsec)
+    })
 
 })

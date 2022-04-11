@@ -25,30 +25,56 @@ shinyUI(
         
         tabPanel(
             "Interactive World Map",
-            style = "position: relative;",
             
-            # the underlying map, takes up the whole page
-            # here map output
-            leafletOutput("covid_map"),
+            fluidPage(
+                
+                ## top panel for map
+                fluidRow(
+                    style = "position: relative;",
+                    
+                    # the underlying map, takes up the whole page
+                    # here map output
+                    leafletOutput("covid_map"),
+                    
+                    # the floating window for user input on top of map
+                    absolutePanel(
+                        id = "map_userInputs",
+                        top = 10,
+                        right = 10,
+                        width = "auto",
+                        height = "auto",
+                        draggable = FALSE,
+                        wellPanel("Variables to map",
+                                  style = "opacity: 0.8; background-color: #ffff;",
+                                  # eg. display numerical variable on heat map
+                                  selectInput(inputId = "num_var_map",
+                                              label = "Numerical Variable",
+                                              choices = num_vars)
+                        )
+                    )
+                ), ## END fluidRow 1
+                
+                hr(), ## horizontal line
+                
+                ## bottom panel
+                fluidRow(
+                    # recommendation text on the left
+                    column(width = 3,
+                           tags$b("Recommendations"),
+                           textOutput("recommendation"),
+                           style = 'border-right: 1px solid #DDDDDD'
+                    ),
+                    
+                    # plot on the right
+                    column(width = 9,
+                           plotOutput("dummyPlot")
+                    )
+                    
+                )## END fluidRow 2
+                
+            )## END fluidPage
             
-            # the floating window for user input on top of map
-            absolutePanel(
-                id = "map_userInputs",
-                top = 10,
-                right = 10,
-                width = "auto",
-                height = "auto",
-                draggable = FALSE,
-                wellPanel("Variables to map",
-                          style = "opacity: 0.6; background-color: #ffff;",
-                          # eg. display numerical variable on heat map
-                          selectInput(inputId = "num_var_map",
-                                      label = "Numerical Variable",
-                                      choices = num_vars)
-                )
-            )
-            
-        ),
+        ), ## END tabPanel
         
 
         # Analysis plots tab page -------------------------------------------------
