@@ -10,7 +10,7 @@ library(leaflet)
 library(plotly)
 library(dygraphs)
 library(xts)
-
+library(sp)
 
 # data loadin and cleaning ------------------------------------------------
 
@@ -22,10 +22,34 @@ shinyServer(function(input, output) {
     
     # world map of covid data
     output$covid_map <- renderLeaflet({
+        ## For Choropleths
         # selectedVar = input$num_var_map
         # pal = colorNumeric(palette = "OrRd",
         #                    domain = covid_data$selectedVar)
-        leaflet(countries,
+        
+        ## The data you want to display in labels, per ISO code
+        # average population
+        pop_summary = covid_data %>% 
+            group_by(iso_code) %>% 
+            summarise(avg.pop = mean(population, na.rm = TRUE))
+        
+        ## Combine with geo data
+        countries_data = merge(countries, pop_summary,
+                               by.x = "ISO_A3", by.y = "iso_code",
+                               all.x = TRUE) # reserve all geo data
+        
+        ## Define HTML labels to display country names and the data
+        labels = c()
+        for (i in 1:length(countries_data)) {
+            labels[[i]] = paste0("<strong>",
+                                 countries_data$ADMIN[i],
+                                 "</strong><br>",
+                                 format(countries_data$avg.pop[i], big.mark = ",")
+            ) %>% HTML()
+        }
+        
+        ## Fashion into leaflet map, with data labels on hover
+        leaflet(countries_data,
                 options = leafletOptions(worldCopyJump = TRUE,
                                          minZoom = 1.25,
                                          zoomSnap = 0.25,
@@ -47,7 +71,9 @@ shinyServer(function(input, output) {
                                                     fillColor = "#FF2600",
                                                     fillOpacity = 0.7,
                                                     bringToFront = TRUE,
-                                                    sendToBack = TRUE)
+                                                    sendToBack = TRUE),
+                label = labels,
+                labelOptions = labelOptions(direction = "auto")
             )
         
         # leaflet() %>% 
