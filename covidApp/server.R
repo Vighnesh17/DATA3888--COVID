@@ -19,15 +19,37 @@ library(xts)
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
-
     
     # world map of covid data
     output$covid_map <- renderLeaflet({
         # selectedVar = input$num_var_map
         # pal = colorNumeric(palette = "OrRd",
         #                    domain = covid_data$selectedVar)
-        leaflet() %>%
-            addTiles()
+        leaflet(countries,
+                options = leafletOptions(worldCopyJump = TRUE,
+                                         minZoom = 1.25,
+                                         zoomSnap = 0.25,
+                                         zoomDelta = 0.25)) %>%
+            addTiles() %>% 
+            setMaxBounds(lng1 = "Infinity", lat1 = -90, 
+                         lng2 = "-Infinity", lat2 = 90) %>% 
+            setView(lng = 0, lat = 45, zoom = 1) %>% 
+            addPolygons(
+                weight = 1,
+                dashArray = "",
+                color = "#B3B6B7",
+                opacity = 1,
+                fillColor = "#F8F9F9",
+                fillOpacity = 0,
+                highlightOptions = highlightOptions(weight = 2,
+                                                    color = "#FFFFFF",
+                                                    dashArray = "",
+                                                    fillColor = "#FF2600",
+                                                    fillOpacity = 0.7,
+                                                    bringToFront = TRUE,
+                                                    sendToBack = TRUE)
+            )
+        
         # leaflet() %>% 
         #     addTiles() %>%
         #     addPolygons(stroke = FALSE,

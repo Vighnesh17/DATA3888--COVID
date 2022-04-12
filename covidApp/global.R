@@ -14,9 +14,13 @@ library(xts)
 # isourl = "https://gist.githubusercontent.com/metal3d/5b925077e66194551df949de64e910f6/raw/c5f20a037409d96958553e2eb6b8251265c6fd63/country-coord.csv"
 # iso_data = read.csv(isourl, sep = ",", strip.white = TRUE)
 
-## load in snapshot of covid and iso datasets
+## FASTER, load in snapshot of covid and iso datasets
 # save(iso_data, covid_data, file = "snapshot.RData")
-load("snapshot.RData")
+load("data/snapshot.RData")
+
+# load in geojson polygons for countries
+# countries = geojsonio::geojson_read("https://datahub.io/core/geo-countries/r/countries.geojson", what = "sp")
+countries = geojsonio::geojson_read("data/countries.geojson", what = "sp")
 
 covid_data = covid_data %>% 
   mutate(

@@ -60,7 +60,7 @@ shinyUI(
                 fluidRow(
                     # recommendation text on the left
                     column(width = 3,
-                           tags$b("Recommendations"),
+                           strong("Recommendations"),
                            textOutput("recommendation"),
                            style = 'border-right: 1px solid #DDDDDD'
                     ),
