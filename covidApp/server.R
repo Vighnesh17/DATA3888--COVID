@@ -38,15 +38,6 @@ shinyServer(function(input, output) {
                                by.x = "ISO_A3", by.y = "iso_code",
                                all.x = TRUE) # reserve all geo data
         
-        ## Define HTML labels to display country names and the data
-        labels = c()
-        for (i in 1:length(countries_data)) {
-            labels[[i]] = paste0("<strong>",
-                                 countries_data$ADMIN[i],
-                                 "</strong><br>",
-                                 format(countries_data$avg.pop[i], big.mark = ",")
-            ) %>% HTML()
-        }
         
         ## Fashion into leaflet map, with data labels on hover
         leaflet(countries_data,
@@ -72,7 +63,20 @@ shinyServer(function(input, output) {
                                                     fillOpacity = 0.7,
                                                     bringToFront = TRUE,
                                                     sendToBack = TRUE),
-                label = labels,
+                ## popup labels on click alternative
+                # popup = paste0(
+                #     "<strong>",countries_data@data$ADMIN,"</strong>", "<br>",
+                #     "Average population: ", format(countries_data@data$avg.pop,
+                #                                    big.mark = ",")
+                # )
+                ## hover over labels alternative
+                label = lapply(
+                    paste0(
+                        "<strong>",countries_data@data$ADMIN,"</strong>", "<br>",
+                        "Average population: ", format(countries_data@data$avg.pop,
+                                                       big.mark = ",")
+                    ), HTML
+                ),
                 labelOptions = labelOptions(direction = "auto")
             )
         
