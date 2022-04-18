@@ -48,7 +48,7 @@ shinyUI(
                         wellPanel("Variables to map",
                                   style = "opacity: 0.8; background-color: #ffff;",
                                   # eg. display numerical variable on heat map
-                                  selectInput(inputId = "timePlot_single_var",
+                                  selectInput(inputId = "timePlot_click_var",
                                               label = "Numerical Variable",
                                               choices = num_vars)
                         )

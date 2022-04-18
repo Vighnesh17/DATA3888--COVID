@@ -90,13 +90,19 @@ shinyServer(function(input, output) {
         #                 color = ~pal(selectedVar))
     })
     
+    ## the time series plot in Analysis Plots tab
     output$time_plot <- renderDygraph({
+        # validate that user input, to avoid error message if nothing is passed on
+        validate(
+            need(input$plot_countries, "Please select a country.")
+        )
+        
         varname = input$plot_var
         countries = input$plot_countries
         
         # subset dataset into selected variable and time, by countries (iso_code)
         covid_subset = covid_data %>% 
-            select(date, iso_code, varname) %>% 
+            select(date, iso_code, all_of(varname)) %>% 
             filter(iso_code %in% countries) %>% 
             pivot_wider(names_from = iso_code,
                         values_from = varname)
@@ -120,13 +126,14 @@ shinyServer(function(input, output) {
         # return the country ISO code on click
     })
     
+    ## the time series plot under the map, reactive to click on map
     output$timePlot_click <- renderDygraph({
         # validate that user input, to avoid error message if nothing is passed on
         validate(
             need(input$covid_map_shape_click, "Please click on a country.")
         )
         
-        varname = input$timePlot_single_var
+        varname = input$timePlot_click_var
         countries = input$covid_map_shape_click$id
         
         # subset dataset into selected variable and time, by countries (iso_code)
