@@ -12,6 +12,7 @@ library(bslib)
 library(plotly)
 library(dygraphs)
 library(xts)
+library(DT)
 
 # Define UI for application that draws a histogram
 shinyUI(
@@ -47,7 +48,7 @@ shinyUI(
                         wellPanel("Variables to map",
                                   style = "opacity: 0.8; background-color: #ffff;",
                                   # eg. display numerical variable on heat map
-                                  selectInput(inputId = "num_var_map",
+                                  selectInput(inputId = "timePlot_single_var",
                                               label = "Numerical Variable",
                                               choices = num_vars)
                         )
@@ -62,12 +63,13 @@ shinyUI(
                     column(width = 3,
                            strong("Recommendations"),
                            textOutput("recommendation"),
+                           verbatimTextOutput("clickInfo"),
                            style = 'border-right: 1px solid #DDDDDD'
                     ),
                     
                     # plot on the right
                     column(width = 9,
-                           plotOutput("dummyPlot")
+                           dygraphOutput("timePlot_click")
                     )
                     
                 )## END fluidRow 2

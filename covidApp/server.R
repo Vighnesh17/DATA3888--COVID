@@ -11,6 +11,7 @@ library(plotly)
 library(dygraphs)
 library(xts)
 library(sp)
+library(DT)
 
 # data loadin and cleaning ------------------------------------------------
 
@@ -50,6 +51,7 @@ shinyServer(function(input, output) {
                          lng2 = "-Infinity", lat2 = 90) %>% 
             setView(lng = 0, lat = 45, zoom = 1) %>% 
             addPolygons(
+                layerId = countries_data$ISO_A3,
                 weight = 1,
                 dashArray = "",
                 color = "#B3B6B7",
@@ -72,8 +74,8 @@ shinyServer(function(input, output) {
                 ## hover over labels alternative
                 label = lapply(
                     paste0(
-                        "<strong>",countries_data@data$ADMIN,"</strong>", "<br>",
-                        "Average population: ", format(countries_data@data$avg.pop,
+                        "<strong>",countries_data$ADMIN,"</strong>", "<br>",
+                        "Average population: ", format(countries_data$avg.pop,
                                                        big.mark = ",")
                     ), HTML
                 ),
@@ -113,8 +115,35 @@ shinyServer(function(input, output) {
         "dummy text"
     })
     
-    output$dummyPlot <- renderPlot({
-        plot(mtcars$wt, mtcars$qsec)
+    output$clickInfo <- renderPrint({
+        input$covid_map_shape_click
+        # return the country ISO code on click
+    })
+    
+    output$timePlot_click <- renderDygraph({
+        # validate that user input, to avoid error message if nothing is passed on
+        validate(
+            need(input$covid_map_shape_click, "Please click on a country.")
+        )
+        
+        varname = input$timePlot_single_var
+        countries = input$covid_map_shape_click$id
+        
+        # subset dataset into selected variable and time, by countries (iso_code)
+        covid_subset = covid_data %>% 
+            select(date, iso_code, varname) %>% 
+            filter(iso_code %in% countries) %>% 
+            pivot_wider(names_from = iso_code,
+                        values_from = varname)
+        
+        # create time series
+        subset.xts = xts(select(covid_subset, !date), 
+                         order.by = covid_subset$date)
+        # time series plot of var vs time (time series)
+        subset.xts %>% 
+            dygraph() %>% 
+            dyRangeSelector() %>% 
+            dyHighlight()
     })
 
 })
