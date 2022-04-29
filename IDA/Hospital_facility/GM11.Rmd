@@ -1,0 +1,153 @@
+---
+title: "GM11"
+author: "Xinzhi Wang"
+date: '2022-04-28'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r cars}
+library(tidyverse)
+library(readxl)
+library(ggplot2)
+library(ggthemes)
+library(maps)
+library(DT)
+library(RSpectra)
+library(GEOquery) 
+library(R.utils)
+library(tuneR)
+library(randomForest)
+library(stringdist)
+library(plotly)
+```
+
+# Load Data
+```{r}
+covid <- read.csv("owid-covid-data.csv")
+covid_hospital <- read.csv("current-covid-patients-hospital.csv")
+covid_icu <- read.csv("current-covid-patients-icu.csv")
+icu <- read.csv("intensive-care-beds-per-100000.csv")
+doctor <- read.csv("doctors.csv")
+nurse <- read.csv("nurse.csv")
+health_spend <- read.csv("health_spending.csv")
+```
+
+
+# GM 11
+```{r}
+gm11<-function(x,k)
+{
+  
+n<-length(x)
+x1<-numeric(n)
+
+for(i in 1:n)   ##一次累加
+{
+  x1[i]<-sum(x[1:i]);
+}
+
+b<-numeric(n)
+m<-n-1
+
+for(j in 1:m)
+{
+  b[j+1]<-(0.5*x1[j+1]+0.5*x1[j])   ##紧邻均值生成
+}
+
+Yn=t(t(x[2:n]))                   ##构造Yn矩阵
+B<-matrix(1,nrow=n-1,ncol=2)      
+B[,1]<-t(t(-b[2:n]))              ##构造B矩阵
+A<-solve(t(B)%*%B)%*%t(B)%*%Yn;   ##使用最小二乘法求得灰参数a,u
+a<-A[1];
+u<-A[2];
+x2<-numeric(k);
+x2[1]<-x[1];
+
+for(i in 1:k-1)
+{
+  x2[1+i]=(x[1]-u/a)*exp(-a*i)+u/a;
+}
+
+x2=c(0,x2);
+y=diff(x2);                     ##累减生成，获得预测数据数列
+y
+}
+```
+
+
+```{r}
+acc<-function(x1,x2)
+{
+     n<-length(x1);
+     sum1=0;
+     for(k in 2:n-1)
+     {
+            sum1<-sum1+(x1[k]-x1[1]);
+     }
+     s1<-sum1+0.5*(x1[n]-x1[1]);
+     sum2=0;
+     for(k in 2:n-1)
+     {
+            sum2<-sum2+(x2[k]-x2[1]);
+     }
+     s2<-sum2+0.5*(x2[n]-x2[1]);
+     abs1<-abs(s1)
+     abs2<-abs(s2)
+     abs12<-abs(s1-s2)
+     ee<-(1+abs1+abs2)/(1+abs1+abs2+abs12)
+     ee
+}
+```
+
+
+
+```{r}
+nurse$TIME <- as.factor(nurse$TIME)
+location <- unique(nurse$ï..LOCATION)
+results <- c()
+countries <- c()
+
+for (l in location){
+  temp_data <- nurse[nurse$ï..LOCATION == l, ]
+  temp_data <- temp_data[!is.na(temp_data$Value), ]
+  temp_data <- temp_data$Value[order(temp_data$TIME)]
+  
+  #print(temp_data[0:5])
+  tryCatch(
+    {
+      results <- append(results, mean(gm11(temp_data[0:10], 2)))
+      countries <- append(countries, l)
+    }, error=function(cond) {
+    #message("Continue")
+  })
+  
+  #append(results, gm11(temp_data[0:10], 2))
+  #break
+}
+
+data.frame(results, countries)
+```
+
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
