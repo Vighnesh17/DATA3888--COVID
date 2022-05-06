@@ -1,0 +1,134 @@
+---
+title: "Avalability"
+author: "Xinzhi Wang"
+date: '2022-05-06'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r cars}
+library(tidyverse)
+library(readxl)
+library(ggplot2)
+library(ggthemes)
+library(maps)
+library(DT)
+library(RSpectra)
+library(GEOquery) 
+library(R.utils)
+library(tuneR)
+library(randomForest)
+library(stringdist)
+library(plotly)
+```
+
+# Load Data
+```{r}
+covid <- read.csv("owid-covid-data.csv")
+policy <- read.csv("covid-vaccination-policy.csv")
+```
+
+
+```{r}
+countries = c("United States", "India", "Brazil", "France", "United Kingdom", "Russia", 
+              "Turkey", "Italy", "Germany", "Spain", "Argentina",
+                "Iran", "Colombia", "Poland", 'Mexico', "Netherlands", 
+              "Indonesia", "Ukraine", "South Africa", "Philippines", "Peru", "Belgium",
+                "Czechia", "Japan", "Israel")
+
+
+covid <- covid %>% filter(location %in% countries)
+policy <- policy %>% filter(Entity %in% countries)
+```
+
+
+```{r}
+data <- covid %>% 
+  select(iso_code, continent, location, date, total_vaccinations, total_vaccinations_per_hundred,new_people_vaccinated_smoothed_per_hundred,  new_people_vaccinated_smoothed, new_vaccinations, new_vaccinations_smoothed, new_vaccinations_smoothed_per_million, total_boosters, population, people_vaccinated)
+
+data <- merge(data, policy, by.x = c('iso_code', "date", "location"), by.y = c('Code', 'Day', "Entity"))
+```
+
+```{r}
+avaliable <- function(data, country) {
+  country_data <- data[data$location == country, ]
+  
+  country_policy <- country_data %>%
+    group_by(vaccination_policy) %>%
+    filter(date = min(as.Date(date))) %>%
+    select(iso_code, location, date, vaccination_policy, new_vaccinations, population, people_vaccinated)
+}
+```
+
+```{r}
+country_data <- data[data$location == "United States", ]
+  
+  country_policy <- country_data %>%
+    group_by(vaccination_policy) %>%
+    arrange(date) %>% 
+    slice(1L) %>%
+    select(iso_code, location, date, vaccination_policy, new_vaccinations, population, people_vaccinated)
+```
+
+```{r}
+ggplot(data = country_data, aes(x = as.Date(date))) + 
+  geom_point(aes(y = new_vaccinations_smoothed, group = vaccination_policy, color = as.factor(vaccination_policy))) +
+  geom_line(aes(y = (total_vaccinations - total_boosters)  / population)) + 
+  scale_y_continuous(sec.axis = sec_axis(~ . / 10000000, name = "")
+  )
+```
+
+
+```{r}
+ggplot() + geom_line(data = country_data, aes(x = as.Date(date), y = (total_vaccinations - total_boosters) / population))
+```
+
+
+```{r}
+ggplot() + geom_line(data = country_data, aes(x = as.Date(date), y = people_vaccinated * 100 / population)) +
+  geom_vline(data = country_policy, aes(xintercept = as.Date(date), color = as.factor(vaccination_policy)))
+```
+
+
+
+```{r}
+scale <- (max(country_data$people_vaccinated[!is.na(country_data$people_vaccinated)]) / country_data$population) / max(country_data$new_vaccinations_smoothed[!is.na(country_data$new_vaccinations_smoothed)])
+
+ggplot() + 
+  geom_point(data = country_data, aes(x = as.Date(date), y = new_vaccinations_smoothed, group = as.factor(vaccination_policy), color = as.factor(vaccination_policy))) +
+  geom_line(data = country_data, aes(x = as.Date(date), y = people_vaccinated / (population * scale)), color = "darkblue", size = 1) + 
+  scale_y_continuous(name = "New vaccination", sec.axis = sec_axis(~.*scale , name = "The ratio of people vaccinated")
+  ) + geom_segment(data = country_policy, aes(x = as.Date(date), xend=as.Date(date), y =0, yend=new_vaccinations, colour = as.factor(vaccination_policy)), size = 0.8) + 
+  ggtitle("The United States") + 
+  xlab("Date") + 
+  labs(color = "Avalability stage")
+```
+
+
+
+```{r}
+ggplot() + geom_vline(data = country_policy, aes(x = date, y = vaccination_policy, xintercept = date))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
