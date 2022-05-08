@@ -104,6 +104,45 @@ shinyUI(
                     dygraphOutput("time_plot")
                 )
             )
+        ), ## END tabPanel
+        
+
+        # Vaccine Visualisation and prediction ------------------------------------
+
+        tabPanel(
+            "Vaccine Visualisation & Prediction",
+            sidebarLayout(
+                # here controls/user inputs for vaccine rollout
+                sidebarPanel(
+                    strong("Predictors:"),
+                    hr(),
+                    # allow multiple country selection? for comparison?
+                    selectizeInput(inputId = "vacc_country",
+                                   label = "Locations",
+                                   choices = loc_all,
+                                   multiple = TRUE,
+                                   options = list(maxItems = 4)),
+                    # initial values made up, need fixing
+                    numericInput(inputId = "population",
+                                 label = "Country population",
+                                 value = 1e6),
+                    numericInput(inputId = "gdp",
+                                 label = "GDP per capita",
+                                 value = 2000),
+                    numericInput(inputId = "vacc_available",
+                                 label = "Vaccines available",
+                                 value = 5000),
+                ),
+                
+                # Predictions (bottom) and time series plots of vaccination (up)
+                mainPanel(
+                    # people vaccinated trend, plot on top
+                    dygraphOutput("timePlot_vacc"),
+                    hr(),
+                    # prediction of vaccination? under time series plot
+                    verbatimTextOutput("prediction")
+                )
+            )
         )
         
     )

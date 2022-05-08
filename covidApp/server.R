@@ -152,5 +152,45 @@ shinyServer(function(input, output) {
             dyRangeSelector() %>% 
             dyHighlight()
     })
+    
+    ## time series plot of people vaccinated & people fully vaccinated
+    output$timePlot_vacc <- renderDygraph({
+        # validate that user input, to avoid error message if nothing is passed on
+        validate(
+            need(input$vacc_country, "Please select a country.")
+        )
+        
+        varname = c("people_vaccinated", "people_fully_vaccinated")
+        countries = input$vacc_country
+        
+        # subset dataset into selected variable and time, by countries (location)
+        covid_subset = covid_data %>% 
+            select(date, location, varname) %>% 
+            filter(location %in% countries) %>% 
+            pivot_wider(names_from = location,
+                        values_from = varname)
+        
+        # create time series
+        subset.xts = xts(select(covid_subset, !date), 
+                         order.by = covid_subset$date)
+        # time series plot of vaccination vs time (time series)
+        subset.xts %>% 
+            dygraph(main = "Vaccination Trend") %>% 
+            dyRangeSelector() %>% 
+            dyHighlight()
+    })
+    
+    output$prediction <- renderPrint({
+        print("placeholder for prediction output")
+        # user inputs
+        new_data = tibble(
+            population = input$population,
+            gdp_per_capita = input$gdp,
+            total_vaccinations = input$vacc_available
+        )
+        # the predicted value based on user input
+        # lmfit from global.R, a simple linear model
+        print(predict(lmfit, new_data, interval = "confidence"))
+    })
 
 })

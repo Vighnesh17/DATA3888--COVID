@@ -37,3 +37,15 @@ num_vars = covid_data %>%
 iso_all = covid_data %>% 
   select(iso_code) %>% 
   distinct()
+
+## all countries (location name)
+loc_all = covid_data %>% 
+  select(location) %>% 
+  distinct()
+
+## prediction model, anything that does not rely on user input
+any_not_na = function(x) {any(!is.na(x))}
+
+# here a simiple linear model, demonstration only
+lmfit = lm(people_vaccinated ~ population + gdp_per_capita + total_vaccinations,
+           data = covid_data %>% select(where(is.numeric)))
