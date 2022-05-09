@@ -58,8 +58,22 @@ avaliable <- function(data, country) {
   
   country_policy <- country_data %>%
     group_by(vaccination_policy) %>%
-    filter(date = min(as.Date(date))) %>%
-    select(iso_code, location, date, vaccination_policy, new_vaccinations, population, people_vaccinated)
+    arrange(date) %>% 
+    slice(1L) %>%
+    select(iso_code, location, date, vaccination_policy, new_vaccinations_smoothed, population, people_vaccinated)
+  
+    scale <- (max(country_data$people_vaccinated[!is.na(country_data$people_vaccinated)]) / country_data$population) / max(country_data$new_vaccinations_smoothed[!is.na(country_data$new_vaccinations_smoothed)])
+  
+  g <- ggplot() + 
+    geom_point(data = country_data, aes(x = as.Date(date), y = new_vaccinations_smoothed, group = as.factor(vaccination_policy), color = as.factor(vaccination_policy))) +
+    geom_line(data = country_data, aes(x = as.Date(date), y = people_vaccinated / (population * scale)), color = "darkblue", size = 1) + 
+    scale_y_continuous(name = "New vaccination", sec.axis = sec_axis(~.*scale , name = "The ratio of people vaccinated")
+    ) + geom_segment(data = country_policy, aes(x = as.Date(date), xend=as.Date(date), y =0, yend=new_vaccinations_smoothed, colour = as.factor(vaccination_policy)), size = 0.8) + 
+    ggtitle(country) + 
+    xlab("Date") + 
+    labs(color = "Avalability stage")
+  
+  return(g)
 }
 ```
 
@@ -70,7 +84,7 @@ country_data <- data[data$location == "United States", ]
     group_by(vaccination_policy) %>%
     arrange(date) %>% 
     slice(1L) %>%
-    select(iso_code, location, date, vaccination_policy, new_vaccinations, population, people_vaccinated)
+    select(iso_code, location, date, vaccination_policy, new_vaccinations_smoothed, population, people_vaccinated)
 ```
 
 ```{r}
@@ -101,8 +115,8 @@ ggplot() +
   geom_point(data = country_data, aes(x = as.Date(date), y = new_vaccinations_smoothed, group = as.factor(vaccination_policy), color = as.factor(vaccination_policy))) +
   geom_line(data = country_data, aes(x = as.Date(date), y = people_vaccinated / (population * scale)), color = "darkblue", size = 1) + 
   scale_y_continuous(name = "New vaccination", sec.axis = sec_axis(~.*scale , name = "The ratio of people vaccinated")
-  ) + geom_segment(data = country_policy, aes(x = as.Date(date), xend=as.Date(date), y =0, yend=new_vaccinations, colour = as.factor(vaccination_policy)), size = 0.8) + 
-  ggtitle("The United States") + 
+  ) + geom_segment(data = country_policy, aes(x = as.Date(date), xend=as.Date(date), y =0, yend=new_vaccinations_smoothed, colour = as.factor(vaccination_policy)), size = 0.8) + 
+  ggtitle("United States") + 
   xlab("Date") + 
   labs(color = "Avalability stage")
 ```
@@ -110,7 +124,7 @@ ggplot() +
 
 
 ```{r}
-ggplot() + geom_vline(data = country_policy, aes(x = date, y = vaccination_policy, xintercept = date))
+avaliable(data, "United States")
 ```
 
 
