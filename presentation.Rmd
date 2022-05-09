@@ -1,0 +1,39 @@
+---
+title: "DATA3888 COVID Vaccination"
+subtitle: "Group C7"
+author: "Aurora Wang, David Vucic, Diana Cao, Harun Hodzic, Sylvia Liu, Tina Tian, Vighnesh Deshpande"
+institute: "University of Sydney"
+date: "`r Sys.Date()`"
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE,
+  echo = FALSE,
+  fig.align = "center"
+)
+```
+
+# Introduction
+
+---
+
+# Dataset
+
+---
+
+# Vaccination Time Lag: First dose vs Fully vaccination
+
+---
+
+# Vaccination Availability
