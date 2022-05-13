@@ -1,0 +1,326 @@
+---
+title: "Vaccination2"
+author: "Sylvia Liu"
+date: "12/05/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(tibble)
+library(ggplot2)
+library(ggthemes)
+library(maps)
+
+library(plotly) # Interactive data visualizations
+library(viridis) # Color gradients
+library(lubridate)
+
+library(randomForest) 
+library(ranger)       # a faster implementation of randomForest
+library(caret)        # performe many machine learning models
+library(broom)  # try: `install.packages("backports")` if diretly installing broom gives an error
+
+library(reshape2) # to use melt()
+```
+
+
+
+## Reading data
+```{r}
+covid_data <- read.csv("owid-covid-data-160222.csv")
+covid_data$date <- as.Date(covid_data$date, format = "%d/%m/%y")
+#head(covid_data)
+```
+
+## Vaccinations progress - Vaccine Roll-Out Index (VRI) values for the countries
+
+(Reference: https://www.mdpi.com/2076-393X/10/2/194/htm)
+
+> **Estimate Vaccine Uptakes Rates r* for Countries**
+"The logistic growth model was used to estimate the vaccination uptake rate. In the logistic model, the cumulative number of doses administered c(t) satisfies the following equation: $$c(t) = \frac{K}{1+a\cdot{e}^{-r\cdot t}}$$,"_ where K is the total vaccinations administered at the end of the date recorded, r is the vaccination uptake rate(i.e. speed), and $\frac{K}{1+a} = c(0)$ is the initial number of doses given.
+
+```{r}
+## TODO: Add a condition check or restrict the country to be passed (avoid error from missing values)
+## TODO: Add constraints on argument format? Adding more conditional checks?
+
+set.seed(3888)
+
+### Estimate Vaccine Uptakes Rates r* for Countries
+# Step 1: A function that returns the logistic model used for estimating r*
+
+estimate_uptake_rate <- function(country) {
+  
+  data <- covid_data %>% filter(location == country) %>% filter(!is.na(total_vaccinations) & total_vaccinations != 0) %>% arrange(date)
+  K <- data %>% select(total_vaccinations) %>% slice_tail() %>% pull()
+  
+  ## Calculate t by ranking the date
+  data$t <- rank(data$date)
+      
+  ## Taking the model to get fitted
+  x <- data$t-1
+  y <- data$total_vaccinations
+  m <- nls( y ~ (K / (1 + a*exp(-r*x))), start = list(a=0.01,r=0.01),control=nls.control(maxiter=200)) #a,r are the coefficients    
+  
+  return(list(model=m))
+  
+}
+
+# Example
+res_nls  = estimate_uptake_rate("Japan")
+summary(res_nls$m)
+```
+
+**Evaluation of the metric on est.r**
+```{r}
+## Step2: Another function for evaluating the logistic model we created for the estimate r (r*), 
+## including fitted plots, correlation values and residual values
+evaluate_est_r <- function(country, m) {
+  
+  data <- covid_data %>% 
+    filter(location == country) %>% 
+    filter(!is.na(total_vaccinations) & total_vaccinations != 0) %>% 
+    arrange(date) 
+  
+  # goodness of fit
+  corr = round(cor(data$total_vaccinations, predict(m)),4)
+     
+  # minimized residual value
+  resid = round(sum(resid(m)^2),4)
+     
+  # Plot fitted values vs true values
+  p <- ggplot(data, aes(x = date, y = total_vaccinations)) +
+  geom_point()+
+  geom_line(aes(x = date, y = total_vaccinations), color="green")+
+  geom_line(aes(x=date,y=predict(m)), color="blue") 
+  
+  return(list(plot=p,corr=corr,resid=resid))
+}
+
+# Example:
+eval_res  = evaluate_est_r("Japan",res_nls$m)
+eval_res$plot
+paste("goodness of fit:",eval_res$corr)
+paste("minimized residual value",eval_res$resid)
+
+```
+
+
+> Define and Calculate Vaccine Roll-Out Index (VRI) 
+"The Vaccine Roll-out Index (VRI) for a country was defined as follows: $$VRI=r\cdot \frac{d}{N}$$," where r is the vaccination uptake rate as defined in the previous section, d is the total vaccinations, and N is the population. 
+
+**VRI was used as an index to compare the overall vaccination progression among different countries, as it reflects both the speed and the density/extend.**
+
+```{r}
+# Step 3 calculate VRI using: est_rate * d/N
+## TODO: adding constraits on argument format? Adding more conditional checks?
+
+cal_VRI <- function(country, est_rate, spec_date) {
+  
+  data <- covid_data %>%  filter(location == country) %>% filter(!is.na(total_vaccinations) & total_vaccinations != 0) %>% arrange(date) %>% filter(date <= as.Date(spec_date) ) 
+  if (nrow(data) != 0) {
+    d <- data %>% select(total_vaccinations) %>% slice_tail() %>% pull()
+    N <- data %>% filter(!is.na(population)) %>% select(population) %>% slice_tail() %>% pull()
+    VRI = est_rate * d/N
+  }
+  else {  ## there's no total_vaccinations data recorded ahead of this time
+    VRI = 0
+  }
+ 
+  return(vri=VRI)
+  
+}
+
+#covid_data %>% filter(location == "Australia") %>% filter(!is.na(total_vaccinations) & total_vaccinations != 0) %>% arrange(date) #%>% filter(date <= as.Date("2021-01-01") ))
+
+```
+
+
+> Comment: The function could be adjusted accordingly for the shiny app, for example:
+- Changing the argument to pass in the model _m_ instead of _est. r_ value 
+- Changing a single end date to a range of dates.
+
+_Side Note: Use it in a for loop to calculate the VRI for the countries you want_
+### Calculate `est.r` and `VRI` for all countries with no null values in `toal_vaccinations` column within the input date
+```{r}
+# Selecting countries with enough vaccination data
+# Set a baseline that the country we selected should has at least 180 days(i.e. 6 months) recorded for the value of vaccinations
+
+valid_countries_df <- covid_data %>%  
+    filter(!is.na(total_vaccinations) & !is.na(population)) %>%
+    group_by(iso_code,location) %>% 
+    summarise(count=n())  %>% 
+    filter(count >= 180 & !grepl("^OWID.", iso_code))  %>% # Remove continent and income groups
+    ungroup()
+    
+selected_countries <- valid_countries_df$location
+# selected_countries
+
+# Calculate est_r, using the whole dataset available to estimate r* (more precise)
+results_r <- c(NA,NA) #c("Country name", est_r)
+for (i in selected_countries) {
+  res_model <- estimate_uptake_rate(i)$model
+  results_r <- rbind(results_r,c(i,round(summary(res_model)$parameters[2],4)))
+}
+results_r <- results_r[-1,]
+colnames(results_r) <- c("Location","Est.r")
+results_r <- data.frame(results_r)
+results_r$Est.r <- as.double(results_r$Est.r)
+head(results_r)
+
+
+results_vri <- c(NA,NA) #c("Country name", VRI)
+cutoff_date = "2021-04-01" # If the date is in the early 2021, there are a lot of missing values for total_vaccinations column, causing the VRI to 0.
+
+for (i in c(1:nrow(results_r))) {
+  vri = cal_VRI(results_r$Location[i],results_r$Est.r[i], cutoff_date)
+  results_vri <- rbind(results_vri,c(results_r$Location[i],round(vri,4)))
+}
+results_vri <- results_vri[-1,] # removing the first pair of NAs
+colnames(results_vri) <- c("Location","VRI")
+results_vri <- data.frame(results_vri)
+results_r$VRI <- as.double(results_vri$VRI)
+head(results_vri)
+```
+
+### The association between vaccination uptake rate and social-economic factors
+
+#### Merging datasets
+
+**I have comment out the government trust dataset as it only contains OECD countries**
+```{r}
+#gov_trust <- read_csv("share-who-trust-government.csv") # PROBLEM: OECD countries only (not enough coverage?)
+#gov_trust
+
+corruption <- read_xlsx("CPI2020_GlobalTablesTS_210125.xlsx", sheet=1,skip=2)
+corruption <- corruption %>% filter(Country %in% selected_countries) %>% select (c("ISO3", "CPI score 2020")) 
+#corruption
+
+happiness <- read_csv("happiness-cantril-ladder.csv")
+happiness <- happiness %>% group_by(Code) %>%
+  arrange(Year) %>%
+  filter(!is.na(`Life satisfaction in Cantril Ladder (World Happiness Report 2021)`)) %>%
+  summarise(satisfaction=last(`Life satisfaction in Cantril Ladder (World Happiness Report 2021)`)) 
+
+covid_grouped <- covid_data %>% group_by(iso_code) %>%
+  arrange(date) %>% 
+  slice_tail()
+
+#joint_data <- merge(covid_grouped,gov_trust, by.x=c("iso_code"), by.y=c("Code")) %>% filter(location %in% selected_countries)
+#joint_data 
+
+joint_data <- merge(covid_grouped,corruption,  by.x=c("iso_code"), by.y=c("ISO3")) %>% filter(location %in% selected_countries)
+
+joint_data <- merge(joint_data,happiness,  by.x=c("iso_code"), by.y=c("Code"))
+head(joint_data)
+```
+
+Merge joint covid data with VRI.
+```{r}
+# Using all the available data (up to 2022-02-22)
+results_vri <- c(NA,NA) #c("Country name", VRI)
+cutoff_date = "2022-02-22" # If the date is in the early 2021, there are a lot of missing values for total_vaccinations column, causing the VRI to 0.
+
+for (i in c(1:nrow(results_r))) {
+  vri = cal_VRI(results_r$Location[i],results_r$Est.r[i], cutoff_date)
+  results_vri <- rbind(results_vri,c(results_r$Location[i],round(vri,4)))
+}
+results_vri <- results_vri[-1,] # removing the first pair of NAs
+colnames(results_vri) <- c("Location","VRI")
+results_vri <- data.frame(results_vri)
+results_r$VRI <- as.double(results_vri$VRI)
+#head(results_vri)
+
+vri_covid_cov_data <- merge(joint_data,results_vri,by.x=c("location"), by.y=c("Location"))
+vri_covid_cov_data$VRI <- as.double(vri_covid_cov_data$VRI)
+head(vri_covid_cov_data)
+```
+
+#### Selecting Covariates
+
+##### Demographic factors (scatter plots)
+Variables: `population_density`, age(`aged_65_older`/`aged_70_older`), `gdp_per_capita`, 
+```{r}
+# Basic scatter plot
+df <- vri_covid_cov_data %>% filter((VRI > -0.32 & VRI < 0.06) & !is.na(population_density) # set a threshold to remove outlier
+                                    &!is.na(gdp_per_capita)&!is.na(aged_65_older)&
+                                      !is.na(extreme_poverty)&
+                                      !is.na(human_development_index)) %>% 
+                            select(c(location,VRI,population_density,gdp_per_capita,aged_65_older,
+                                     `CPI score 2020`,
+                                     satisfaction,extreme_poverty,human_development_index,life_expectancy)) # `Trust the national government in this country`is removed
+#df
+ggplot(df, aes(x=VRI, y=population_density)) + geom_point() + ggtitle("Population density vs Vaccine Roll-out Index(VRI)") + ylim(c(0,2000))
+ggplot(df, aes(x=VRI, y=gdp_per_capita)) + geom_point() + ggtitle("GDP per capita vs Vaccine Roll-out Index(VRI)")
+ggplot(df, aes(x=VRI, y=aged_65_older)) + geom_point() + ggtitle("Aged over 65 vs Vaccine Roll-out Index(VRI)")
+#ggplot(df, aes(x=VRI, y=aged_70_older)) + geom_point() + ggtitle("Aged over 70 vs Vaccine Roll-out Index(VRI)")
+```
+##### Social and Economic
+Variables: Stringency(`stringency_index`), trust(`share_who _trust_government`), corruption(`CPI score 2020`), happiness(`satisfaction`), `extreme_poverty`, `human_development_index`, `life_expectancy`.
+
+Remove the stringency_index as there's not enough data.
+```{r}
+#ggplot(df, aes(x=VRI, y= stringency_index)) + geom_point() + ggtitle("Stringency vs Vaccine Roll-out Index(VRI)")
+ggplot(df, aes(x=VRI, y=`CPI score 2020`)) + geom_point() + ggtitle("Corruption vs Vaccine Roll-out Index(VRI)")
+#ggplot(df, aes(x=VRI, y= `Trust the national government in this country`)) + geom_point() + ggtitle("Trust in government vs Vaccine Roll-out Index(VRI)")
+ggplot(df, aes(x=VRI, y= satisfaction)) + geom_point() + ggtitle("Happiness vs Vaccine Roll-out Index(VRI)")
+ggplot(df, aes(x=VRI, y= extreme_poverty)) + geom_point() + ggtitle("Extreme Poverty vs Vaccine Roll-out Index(VRI)")
+ggplot(df, aes(x=VRI, y= human_development_index)) + geom_point() + ggtitle("Human Development Index vs Vaccine Roll-out Index(VRI)")
+ggplot(df, aes(x=VRI, y= life_expectancy)) + geom_point() + ggtitle("Life Expectancy vs Vaccine Roll-out Index(VRI)")
+
+```
+##### Correlation Check
+```{r}
+ # correlation matrix
+cor_mat <- round(cor(df %>% select(-location),method="spearman"),2)# for non-linear correlation (non-parametric)
+
+## Reorder the correlation matrix
+# Refernce: http://www.sthda.com/english/wiki/ggplot2-quick-correlation-matrix-heatmap-r-software-and-data-visualization
+
+reorder_cormat <- function(cor_mat){
+  # Use correlation between variables as distance
+  dd <- as.dist((1-cor_mat)/2)
+  hc <- hclust(dd)
+  return (cor_mat[hc$order, hc$order])
+}
+
+cor_mat <- reorder_cormat(cor_mat)
+
+## Remove redundant information (taking the upper triangles values)
+cor_mat[lower.tri(cor_mat)]<- NA
+cor_mat <- melt(cor_mat, na.rm = TRUE)
+cor_mat
+
+## Plotting heatmap
+ggheatmap <- ggplot(cor_mat, aes(Var2, Var1, fill = value))+
+ geom_tile(color = "white")+
+ scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab", 
+    name="Spearman\nCorrelation") +
+  theme_minimal()+ # minimal theme
+ theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+    size = 12, hjust = 1))+
+ coord_fixed()
+
+ggheatmap + 
+geom_text(aes(Var2, Var1, label = value), color = "black", size = 3) +
+  theme(
+  axis.title.x = element_blank(),
+  axis.title.y = element_blank(),
+  panel.grid.major = element_blank(),
+  panel.border = element_blank(),
+  panel.background = element_blank(),
+  axis.ticks = element_blank(),
+  legend.justification = c(1, 0),
+  legend.position = c(0.6, 0.7),
+  legend.direction = "horizontal")+
+  guides(fill = guide_colorbar(barwidth = 7, barheight = 1,
+                title.position = "top", title.hjust = 0.5))
+
+```
+

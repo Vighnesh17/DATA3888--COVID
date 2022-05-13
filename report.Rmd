@@ -1,0 +1,111 @@
+---
+title: "DATA3888 COVID Report"
+author: '500254239'
+date: "`r format(Sys.time(), '%d %b %Y')`"
+output: 
+  bookdown::html_document2:
+    theme: 
+      bootswatch: lumen
+    code_folding: hide
+    toc: true
+    toc_float: true
+    number_sections: true
+    df_print: paged
+bibliography: [references.bib, references-pkg.bib]
+csl: apa-6th-edition.csl
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,    # for final report, set to FALSE to hide all code chunks
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center",
+  fig.cap = ""
+)
+```
+
+```{r libraries}
+library(tidyverse)
+library(printr)
+```
+
+# Guide for RMarkdown report (remove for final report)
+
+## Bibliographies in RMarkdown
+
+- `references.bib`: for BibTeX of all sources you wish to reference
+- `references-pkg.bib`: for BibTeX of all packages used in the report
+
+Bibliographies will be included automatically at the end before appendix. Copy paste `bib` or `BibTeX` text from your sources into the file `references.bib` following the example format, leaving an empty line between entries. Name it however you want in the first line after `@document-format{` like in the example. For any package you are using, if there isn't already an entry for it in the bib file, then use the function `citation("package-name")` in R console and copy the `BibTeX` entry from the output, paste it into `references-pkg.bib`.
+
+Examples of how to reference bib entries in-text (check the rmd file):
+
+- Garth reference: [@RN83]
+- `tidyverse` reference: [@tidyverse]
+
+## Figures cross-referencing
+
+Here is an example plot with caption and how to reference it in-text:
+
+Use code chunk names to reference the figure output of that code chunk: Figure \@ref(fig:example-plot). *Note this will only show the number (default format: section-num.figure-num), you have to put "Figure" before the \@ref(fig:..) as well.*
+
+```{r example-plot, fig.cap="Example plot"}
+# example plot
+mtcars %>% 
+  rownames_to_column("car") %>% 
+  data_frame() %>% 
+  ggplot() +
+  aes(x = factor(cyl), y = disp, colour = factor(cyl)) +
+  geom_boxplot()
+```
+
+
+# Executive Summary
+
+
+
+# Data Background
+
+
+# Methods
+
+
+## Time lag between 1st and 2nd dose
+
+
+## Vaccine rollout index (VRI) and variable importance
+
+
+## Vaccine uptake and availability
+
+
+# Results
+
+
+# Discussion & Conclusion
+
+
+# Student Contributions
+
+
+# References
+
+::: {#refs}
+:::
+
+# (APPENDIX) Appendix {-}
+
+# Code
+
+```{r get-labels}
+labs = knitr::all_labels()
+# exclude chunk "setup" and "get-labels" (this chunk)
+labs = setdiff(labs, c("setup", "get-labels"))
+# can be used later if want all code in one chunk
+```
+
+```{r all-code, ref.label="example-plot", echo=TRUE, eval=FALSE}
+# only example-plot code chunk
+```
+
