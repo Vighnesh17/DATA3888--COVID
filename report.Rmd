@@ -17,7 +17,7 @@ csl: apa-6th-edition.csl
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
-  echo = TRUE,
+  echo = TRUE,    # for final report, set to FALSE to hide all code chunks
   message = FALSE,
   warning = FALSE,
   fig.align = "center",
@@ -86,9 +86,26 @@ mtcars %>%
 # Discussion & Conclusion
 
 
+# Student Contributions
+
+
 # References
 
 ::: {#refs}
 :::
 
 # (APPENDIX) Appendix {-}
+
+# Code
+
+```{r get-labels}
+labs = knitr::all_labels()
+# exclude chunk "setup" and "get-labels" (this chunk)
+labs = setdiff(labs, c("setup", "get-labels"))
+# can be used later if want all code in one chunk
+```
+
+```{r all-code, ref.label="example-plot", echo=TRUE, eval=FALSE}
+# only example-plot code chunk
+```
+

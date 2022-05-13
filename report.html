@@ -339,8 +339,11 @@ Figure 1.1: Example plot
 <div id="discussion-conclusion" class="section level1" number="6">
 <h1><span class="header-section-number">6</span> Discussion &amp; Conclusion</h1>
 </div>
-<div id="references" class="section level1" number="7">
-<h1><span class="header-section-number">7</span> References</h1>
+<div id="student-contributions" class="section level1" number="7">
+<h1><span class="header-section-number">7</span> Student Contributions</h1>
+</div>
+<div id="references" class="section level1" number="8">
+<h1><span class="header-section-number">8</span> References</h1>
 <div id="refs" class="references csl-bib-body hanging-indent">
 <div id="ref-RN83" class="csl-entry">
 Tarr, G. (2021). <em>DATA2002 data analytics: Learning from data</em>. Unpublished Work, University of Sydney, Sydney Australia.
@@ -352,6 +355,20 @@ Wickham, H., Averick, M., Bryan, J., Chang, W., McGowan, L. D., Fran√ßois, R., ‚
 </div>
 <div id="appendix-appendix" class="section level1 unnumbered">
 <h1>Appendix</h1>
+</div>
+<div id="code" class="section level1" number="9">
+<h1><span class="header-section-number">A</span> Code</h1>
+<pre class="r"><code>labs = knitr::all_labels()
+# exclude chunk &quot;setup&quot; and &quot;get-labels&quot; (this chunk)
+labs = setdiff(labs, c(&quot;setup&quot;, &quot;get-labels&quot;))
+# can be used later if want all code in one chunk</code></pre>
+<pre class="r"><code># example plot
+mtcars %&gt;% 
+  rownames_to_column(&quot;car&quot;) %&gt;% 
+  data_frame() %&gt;% 
+  ggplot() +
+  aes(x = factor(cyl), y = disp, colour = factor(cyl)) +
+  geom_boxplot()</code></pre>
 </div>
 
 
