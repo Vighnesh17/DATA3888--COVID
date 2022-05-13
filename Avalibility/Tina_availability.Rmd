@@ -32,7 +32,9 @@ library(hrbrthemes)
 Load data
 ```{r}
 covid <- read.csv("owid-covid-data.csv")
+covid$date <- as.Date(covid$date)
 policy <- read.csv("covid-vaccination-policy.csv")
+policy$Day <- as.Date(policy$Day)
 ```
 
 
@@ -46,20 +48,24 @@ countries = c("United States", "India", "Brazil", "France", "United Kingdom", "R
 
 
 covid <- covid %>% filter(location %in% countries)
+
 policy <- policy %>% filter(Entity %in% countries)
+
 
 ```
 
 ```{r}
 merged_data <- covid %>% 
   select(iso_code, continent, location, date, total_vaccinations, total_vaccinations_per_hundred,new_people_vaccinated_smoothed_per_hundred,  new_people_vaccinated_smoothed, new_vaccinations, new_vaccinations_smoothed, new_vaccinations_smoothed_per_million, total_boosters, population, people_vaccinated)
-merged_data <- merge(data, policy, by.x = c('iso_code', "date", "location"), by.y = c('Code', 'Day', "Entity"))
+
+merged_data <- merge(merged_data, policy, by.x = c('iso_code', "date", "location"), by.y = c('Code', 'Day', "Entity"))
+#merged_data$date <- as.Date(merged_data$date, format = "%d/%m/%y")
 ```
 
 ```{r}
 merged_data$people_vaccinated[is.na(merged_data$people_vaccinated)] = 0
 #merged_data <- rename(merged_data, vaccination_policy = vaccination_policy.x)
-#merged_data$vaccination_policy.y <- NULL
+merged_data$vaccination_policy.y <- NULL
 
 
 ```
@@ -67,6 +73,7 @@ merged_data$people_vaccinated[is.na(merged_data$people_vaccinated)] = 0
 ```{r}
 merged_data$location <- as.character(merged_data$location)
 merged_data$vaccination_policy <- as.factor(merged_data$vaccination_policy)
+#merged_data$date <- as.Date(merged_data$date, format = "%d/%m/%y")
 
 ```
 
@@ -196,7 +203,7 @@ p4
 ```
 
 
-Graph of Stage 1
+Graph of Stage 5
 ```{r}
 
 stage5 <- filterdata[filterdata$vaccination_policy == "5",]
@@ -216,3 +223,59 @@ p5
 
 
 Calculate Speed
+
+
+
+France
+```{r}
+france <- clean_data[clean_data$location == "France",] 
+ggplot(france, aes(x=date, y = people_vaccinated, colour = vaccination_policy)) + 
+  geom_point() + 
+    labs(x="Date",
+         y="number of people vaccinated", 
+       title="vaccination of france at different stages of vaccination availability")+ 
+theme_bw()+
+theme(axis.text.x = element_text(size = rel(0.5),angle = 90, vjust = 1, hjust = 1))
+```
+
+
+India
+```{r}
+
+india <- clean_data[clean_data$location == "India",] 
+ggplot(india, aes(x=date, y = people_vaccinated, colour = vaccination_policy)) + 
+  geom_point() + 
+    labs(x="Date",
+         y="number of people vaccinated", 
+       title="vaccination of India at different stages of vaccination availability")+ 
+theme_bw()+
+theme(axis.text.x = element_text(size = rel(0.5),angle = 90, vjust = 1, hjust = 1))
+
+
+
+
+```
+
+All the countries
+```{r}
+
+ 
+ggplot(clean_data, aes(x=date, y = people_vaccinated, colour = vaccination_policy)) + 
+  geom_point() + 
+    labs(x="Date",
+         y="number of people vaccinated", 
+       title="vaccination of India at different stages of vaccination availability")+ 
+theme_bw()+
+theme(axis.text.x = element_text(size = rel(0.5),angle = 90, vjust = 1, hjust = 1)) +
+  facet_wrap(~location)
+
+
+
+
+
+
+
+
+
+
+```
