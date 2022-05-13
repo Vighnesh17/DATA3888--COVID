@@ -47,7 +47,7 @@ policy <- policy %>% filter(Entity %in% countries)
 
 ```{r}
 data <- covid %>% 
-  select(iso_code, continent, location, date, total_vaccinations, total_vaccinations_per_hundred,new_people_vaccinated_smoothed_per_hundred,  new_people_vaccinated_smoothed, new_vaccinations, new_vaccinations_smoothed, new_vaccinations_smoothed_per_million, total_boosters, population, people_vaccinated)
+  select(iso_code, continent, location, date, total_vaccinations, total_vaccinations_per_hundred,new_people_vaccinated_smoothed_per_hundred,  new_people_vaccinated_smoothed, new_vaccinations, new_vaccinations_smoothed, new_vaccinations_smoothed_per_million, total_boosters, population, people_vaccinated, new_deaths)
 
 data <- merge(data, policy, by.x = c('iso_code', "date", "location"), by.y = c('Code', 'Day', "Entity"))
 
@@ -89,7 +89,7 @@ country_data$date <- as.Date(country_data$date)
     group_by(vaccination_policy) %>%
     arrange(date) %>% 
     slice(1L) %>%
-    select(iso_code, location, date, vaccination_policy, new_vaccinations_smoothed, population, people_vaccinated)
+    select(iso_code, location, date, vaccination_policy, new_vaccinations_smoothed, population, people_vaccinated, new_deaths, new_people_vaccinated_smoothed)
 ```
 
 ```{r}
@@ -121,6 +121,33 @@ ggplot() +
   geom_line(data = country_data, aes(x = as.Date(date), y = people_vaccinated / (population * scale)), color = "darkblue", size = 1) + 
   scale_y_continuous(name = "New vaccination", sec.axis = sec_axis(~.*scale , name = "The ratio of people vaccinated")
   ) + geom_segment(data = country_policy, aes(x = as.Date(date), xend=as.Date(date), y =0, yend=new_vaccinations_smoothed, colour = as.factor(vaccination_policy)), size = 0.8) + 
+  ggtitle("United States") + 
+  xlab("Date") + 
+  labs(color = "Avalability stage")
+```
+
+```{r}
+
+scale <- (max(country_data$new_deaths[!is.na(country_data$new_deaths)]) / country_data$population) / max(country_data$new_vaccinations_smoothed[!is.na(country_data$new_vaccinations_smoothed)])
+
+ggplot() + 
+  geom_point(data = country_data, aes(x = as.Date(date), y = new_vaccinations_smoothed, group = as.factor(vaccination_policy), color = as.factor(vaccination_policy))) +
+  geom_line(data = country_data, aes(x = as.Date(date), y = new_deaths / (population * scale)), color = "darkblue", size = 0.5, alpha = 0.2) + 
+  scale_y_continuous(name = "New vaccination", sec.axis = sec_axis(~.*scale , name = "The ratio of people vaccinated")
+  ) + geom_segment(data = country_policy, aes(x = as.Date(date), xend=as.Date(date), y =0, yend=new_vaccinations_smoothed, colour = as.factor(vaccination_policy)), size = 0.8) + 
+  ggtitle("United States") + 
+  xlab("Date") + 
+  labs(color = "Avalability stage")
+```
+
+```{r}
+scale <- (max(country_data$new_deaths[!is.na(country_data$new_deaths)]) / country_data$population) / max(country_data$new_people_vaccinated_smoothed[!is.na(country_data$new_people_vaccinated_smoothed)])
+
+ggplot() + 
+  geom_point(data = country_data, aes(x = as.Date(date), y = new_people_vaccinated_smoothed, group = as.factor(vaccination_policy), color = as.factor(vaccination_policy))) +
+  geom_line(data = country_data, aes(x = as.Date(date), y = new_deaths / (population * scale)), color = "darkblue", size = 0.5, alpha = 0.2) + 
+  scale_y_continuous(name = "New vaccination", sec.axis = sec_axis(~.*scale , name = "The ratio of people vaccinated")
+  ) + geom_segment(data = country_policy, aes(x = as.Date(date), xend=as.Date(date), y =0, yend=new_people_vaccinated_smoothed, colour = as.factor(vaccination_policy)), size = 0.8) + 
   ggtitle("United States") + 
   xlab("Date") + 
   labs(color = "Avalability stage")
@@ -204,7 +231,7 @@ get_slope <- function(country_data, country_policy, country) {
       # temp_people <- country_data$people_vaccinated[as.Date(start_date) <= country_data$date & country_data$date <= as.Date(end_date) & !is.na(country_data$people_vaccinated)]
       
       
-      temp_people <- country_data$people_vaccinated[country_data$vaccination_policy == current_policy & !is.na(country_data$people_vaccinated)]
+      temp_people <- country_data$people_vaccinated[country_data$vaccination_policy == current_policy & !is.na(country_data$people_vaccinated)] / country_data$population[1]
       
       temp_index <- 1:length(temp_people)
       
@@ -237,7 +264,7 @@ countries = c("United States", "India", "Brazil", "France", "United Kingdom", "R
                 "Czechia", "Japan", "Israel")
 
 ```{r}
-get_slope(country_data, country_policy, "Brazil")
+get_slope(country_data, country_policy, "United States")
 
 ```
 
