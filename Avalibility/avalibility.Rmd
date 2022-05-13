@@ -50,6 +50,10 @@ data <- covid %>%
   select(iso_code, continent, location, date, total_vaccinations, total_vaccinations_per_hundred,new_people_vaccinated_smoothed_per_hundred,  new_people_vaccinated_smoothed, new_vaccinations, new_vaccinations_smoothed, new_vaccinations_smoothed_per_million, total_boosters, population, people_vaccinated)
 
 data <- merge(data, policy, by.x = c('iso_code', "date", "location"), by.y = c('Code', 'Day', "Entity"))
+
+# data$vaccination_policy[data$location == "Turkey" & data$vaccination_policy == 4] = 5
+# data$vaccination_policy[data$location == "Iran" & data$vaccination_policy == 2] = 3
+# data$vaccination_policy[data$location == "Iran" & data$vaccination_policy == 3] = 4
 ```
 
 ```{r}
@@ -79,6 +83,7 @@ avaliable <- function(data, country) {
 
 ```{r}
 country_data <- data[data$location == "United States", ]
+country_data$date <- as.Date(country_data$date)
   
   country_policy <- country_data %>%
     group_by(vaccination_policy) %>%
@@ -128,20 +133,153 @@ avaliable(data, "United States")
 ```
 
 
+```{r}
+i = 1
+temp_slope <- data.frame(policy = as.factor(1:5), speed = rep(0, 5), country = rep(country_policy$location[1], 5))
+
+while (i <= length(country_policy$vaccination_policy)) {
+  current_policy = country_policy$vaccination_policy[i]
+  print(current_policy)
+  
+  
+  if (!is.na(country_policy$people_vaccinated[country_policy$vaccination_policy == current_policy])) {
+    
+    # Get the start date
+    start_date = country_policy$date[country_policy$vaccination_policy == current_policy]
+    
+    # Get the end date of the period
+    if (i != length(country_policy$vaccination_policy)) {
+      end_date = country_policy$date[country_policy$vaccination_policy == country_policy$vaccination_policy[i+1]]
+    } else {
+      end_date = max(as.Date(country_data$date))
+    }
+    
+    # Extract the data of the specific stage
+    temp_people <- country_data$people_vaccinated[as.Date(start_date) <= country_data$date & country_data$date <= as.Date(end_date) & !is.na(country_data$people_vaccinated)]
+    
+    temp_index <- 1:length(temp_people)
+    
+    # Linear model
+    mod <- lm(temp_people ~ temp_index)
+    
+    print(summary(mod)$coefficients[2,1])
+    
+    # Extract and store the slope
+    country_slope$speed[country_slope$policy == current_policy] <- summary(mod)$coefficients[2,1]
+    
+    # Insert the country name
+    
+  } 
+  
+  i <- i + 1
+  
+}
+
+```
 
 
+```{r}
+get_slope <- function(country_data, country_policy, country) {
+  i = 1
+  country_slope <- data.frame(policy = as.factor(1:5), speed = rep(0, 5), country = rep(country, 5))
+  
+  while (i <= length(country_policy$vaccination_policy)) {
+    current_policy = country_policy$vaccination_policy[i]
+    
+    if (current_policy > 0 & !is.na(country_policy$people_vaccinated[country_policy$vaccination_policy == current_policy])) {
+      
+      # # Get the start date
+      # start_date = country_policy$date[country_policy$vaccination_policy == current_policy]
+      # 
+      # 
+      # # Get the end date of the period
+      # if (i != length(country_policy$vaccination_policy)) {
+      #   end_date = country_policy$date[country_policy$vaccination_policy == country_policy$vaccination_policy[i+1]]
+      #  
+      # } else {
+      #   end_date = max(as.Date(country_data$date))
+      # }
+      # 
+      # # Extract the data of the specific stage
+      # temp_people <- country_data$people_vaccinated[as.Date(start_date) <= country_data$date & country_data$date <= as.Date(end_date) & !is.na(country_data$people_vaccinated)]
+      
+      
+      temp_people <- country_data$people_vaccinated[country_data$vaccination_policy == current_policy & !is.na(country_data$people_vaccinated)]
+      
+      temp_index <- 1:length(temp_people)
+      
+      if (length(temp_index) > 1) {
+        # Linear model
+        mod <- lm(temp_people ~ temp_index)
+        
+        # Extract and store the slope
+        country_slope$speed[country_slope$policy == current_policy] <- summary(mod)$coefficients[2,1]
+      } else {
+        # Some countries only have a policy for 1 day -> treat the slope as 0
+        country_slope$speed[country_slope$policy == current_policy] <- 0
+      }
+      
+    } 
+    
+    i <- i + 1
+    
+  }
+  
+  return(country_slope)
+}
+```
 
 
+countries = c("United States", "India", "Brazil", "France", "United Kingdom", "Russia", 
+              "Turkey", "Italy", "Germany", "Spain", "Argentina",
+                "Iran", "Colombia", "Poland", 'Mexico', "Netherlands", 
+              "Indonesia", "Ukraine", "South Africa", "Philippines", "Peru", "Belgium",
+                "Czechia", "Japan", "Israel")
+
+```{r}
+get_slope(country_data, country_policy, "Brazil")
+
+```
+
+Get slope for all the countries
+```{r}
+country_slope = NULL
+
+for (country in countries) {
+  country_data <- data[data$location == country, ]
+  
+  country_policy <- country_data[!is.na(country_data$people_vaccinated), ] %>%
+    group_by(vaccination_policy) %>%
+    arrange(date) %>% 
+    slice(1L) %>%
+    select(iso_code, location, date, vaccination_policy, new_vaccinations_smoothed, population, people_vaccinated)
+  
+  temp_slope <- get_slope(country_data, country_policy, country)
+  
+  country_slope <- rbind(country_slope, temp_slope)
+}
+
+```
 
 
+```{r}
+ggplot(data = country_slope, aes(x = country, y = speed, fill = as.factor(policy))) + 
+  geom_bar(stat="identity", position=position_dodge()) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + 
+  scale_y_sqrt() + 
+  ggtitle("All countries")
+  
+  
+```
 
-
-
-
-
-
-
-
+```{r}
+ggplot(data = country_slope[country_slope$country == "United States", ], aes(x = as.factor(policy), y = speed, fill = as.factor(policy))) + 
+  geom_bar(stat="identity", position=position_dodge()) + 
+  scale_y_sqrt() +
+  ggtitle("United States")
+  
+  
+```
 
 
 

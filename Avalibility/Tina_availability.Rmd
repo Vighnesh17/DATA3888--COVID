@@ -38,7 +38,6 @@ library(stringdist)
 library(plotly)
 library(viridis)
 library(hrbrthemes)
-libraru()
 ```
 
 # Load Data
@@ -63,7 +62,8 @@ policy <- policy %>% filter(Entity %in% countries)
 ```{r}
 merged_data <- covid %>% 
   select(iso_code, continent, location, date, total_vaccinations, total_vaccinations_per_hundred,new_people_vaccinated_smoothed_per_hundred,  new_people_vaccinated_smoothed, new_vaccinations, new_vaccinations_smoothed, new_vaccinations_smoothed_per_million, total_boosters, population, people_vaccinated)
-merged_data <- merge(data, policy, by.x = c('iso_code', "date", "location"), by.y = c('Code', 'Day', "Entity"))
+
+merged_data <- merge(merged_data, policy, by.x = c('iso_code', "date", "location"), by.y = c('Code', 'Day', "Entity"))
 ```
 
 ```{r}
@@ -123,6 +123,9 @@ merged_data$vaccination_policy.y <- NULL
 
 merged_data
 ```
+
+
+
 ```{r}
 # convert suitable  data types
 merged_data$location <- as.character(merged_data$location)
