@@ -114,7 +114,7 @@ ggplot() + geom_line(data = country_data, aes(x = as.Date(date), y = people_vacc
 
 
 ```{r}
-scale <- (max(country_data$people_vaccinated[!is.na(country_data$people_vaccinated)]) / country_data$population) / max(country_data$new_vaccinations_smoothed[!is.na(country_data$new_vaccinations_smoothed)])
+scale <- (max(country_data$people_vaccinated[!is.na(country_data$people_vaccinated)]) / country_data$population[1]) / max(country_data$new_vaccinations_smoothed[!is.na(country_data$new_vaccinations_smoothed)])
 
 ggplot() + 
   geom_point(data = country_data, aes(x = as.Date(date), y = new_vaccinations_smoothed, group = as.factor(vaccination_policy), color = as.factor(vaccination_policy))) +
@@ -125,6 +125,21 @@ ggplot() +
   xlab("Date") + 
   labs(color = "Avalability stage")
 ```
+
+```{r}
+scale <- (max(country_data$people_vaccinated[!is.na(country_data$people_vaccinated)]) / country_data$population) / max(country_data$new_people_vaccinated_smoothed[!is.na(country_data$new_people_vaccinated_smoothed)])
+
+ggplot() + 
+    geom_point(data = country_data, aes(x = as.Date(date), y = new_people_vaccinated_smoothed, group = as.factor(vaccination_policy), color = as.factor(vaccination_policy))) +
+    geom_line(data = country_data, aes(x = as.Date(date), y = people_vaccinated / (population * scale)), color = "darkblue", size = 1) + 
+    scale_y_continuous(name = "New vaccination", sec.axis = sec_axis(~.*scale , name = "The ratio of people vaccinated")
+    ) + geom_segment(data = country_policy, aes(x = as.Date(date), xend=as.Date(date), y =0, yend=new_people_vaccinated_smoothed, colour = as.factor(vaccination_policy)), size = 0.8) + 
+    ggtitle(country) + 
+    xlab("Date") + 
+    labs(color = "Avalability stage")
+```
+
+
 
 ```{r}
 
