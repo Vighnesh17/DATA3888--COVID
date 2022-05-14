@@ -1,0 +1,282 @@
+---
+title: "Avalability"
+author: "Tina Tian"
+date: '2022-05-13'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Installed Packages
+```{r cars}
+library(tidyverse)
+library(readxl)
+library(ggplot2)
+library(ggthemes)
+library(maps)
+library(DT)
+library(RSpectra)
+library(GEOquery) 
+library(R.utils)
+library(tuneR)
+library(randomForest)
+library(stringdist)
+library(plotly)
+library(viridis)
+library(hrbrthemes)
+```
+
+Load data
+```{r}
+covid <- read.csv("owid-covid-data.csv")
+covid$date <- as.Date(covid$date)
+policy <- read.csv("covid-vaccination-policy.csv")
+policy$Day <- as.Date(policy$Day)
+```
+
+
+Data Wrangling & Data Cleaning
+```{r}
+countries = c("United States", "India", "Brazil", "France", "United Kingdom", "Russia", 
+              "Turkey", "Italy", "Germany", "Spain", "Argentina",
+                "Iran", "Colombia", "Poland", 'Mexico', "Netherlands", 
+              "Indonesia", "Ukraine", "South Africa", "Philippines", "Peru", "Belgium",
+                "Czechia", "Japan", "Israel")
+
+
+covid <- covid %>% filter(location %in% countries)
+
+policy <- policy %>% filter(Entity %in% countries)
+
+
+```
+
+```{r}
+merged_data <- covid %>% 
+  select(iso_code, continent, location, date, total_vaccinations, total_vaccinations_per_hundred,new_people_vaccinated_smoothed_per_hundred,  new_people_vaccinated_smoothed, new_vaccinations, new_vaccinations_smoothed, new_vaccinations_smoothed_per_million, total_boosters, population, people_vaccinated)
+
+merged_data <- merge(merged_data, policy, by.x = c('iso_code', "date", "location"), by.y = c('Code', 'Day', "Entity"))
+#merged_data$date <- as.Date(merged_data$date, format = "%d/%m/%y")
+```
+
+```{r}
+merged_data$people_vaccinated[is.na(merged_data$people_vaccinated)] = 0
+#merged_data <- rename(merged_data, vaccination_policy = vaccination_policy.x)
+merged_data$vaccination_policy.y <- NULL
+
+
+```
+
+
+```{r}
+merged_data$location <- as.character(merged_data$location)
+merged_data$vaccination_policy <- as.factor(merged_data$vaccination_policy)
+#merged_data$date <- as.Date(merged_data$date, format = "%d/%m/%y")
+
+```
+
+Subsetting required variables
+```{r}
+glimpse(merged_data)
+
+clean_data <- merged_data %>%
+  select(iso_code, location, date, people_vaccinated, vaccination_policy)
+
+```
+
+```{r}
+
+filterdata <- clean_data %>%
+  group_by(location, vaccination_policy) %>%
+  summarize(people_vaccinated = sum(people_vaccinated))
+
+
+```
+
+Graph of all the countries at different stages of vaccine availability, ranging from stage 0 - stage 5
+```{r}
+
+
+filterdata %>%
+  ggplot(aes(fill = vaccination_policy, y = people_vaccinated, x = location)) +
+  geom_bar(position="stack", stat="identity") +
+  scale_fill_viridis(discrete = T) +
+  ggtitle("Vaccination availibility stage of each country") +
+  facet_wrap(~vaccination_policy, scales = "free_y") +
+  theme(axis.text.x = element_text(size = rel(0.5),angle = 90, vjust = 1, hjust = 1)) 
+  #scale_y_continuous(limits = c(0,1200000000)) 
+
+
+
+
+```
+
+Graph of Stage 0
+```{r}
+
+stage0 <- filterdata[filterdata$vaccination_policy == "0",]
+
+p0 <- stage0 %>%
+  ggplot(aes(y = people_vaccinated, x = location, colour = location, fill = location)) +
+  geom_bar(position = "stack", stat = "identity") +
+  geom_point() + geom_line() +
+  scale_fill_viridis(discrete = T) +
+  scale_color_viridis(discrete=TRUE) +
+  ggtitle("Stage 0 vaccination Availibility")  +
+  theme(axis.text.x = element_text(size = rel(0.5),angle = 90, vjust = 1, hjust = 1)) 
+
+p0
+
+```
+
+Graph of Stage 1
+```{r}
+
+stage1 <- filterdata[filterdata$vaccination_policy == "1",]
+
+p1 <- stage1 %>%
+  ggplot(aes(y = people_vaccinated, x = location, colour = location, fill = location)) +
+  geom_bar(position = "stack", stat = "identity") +
+  geom_point() + geom_line() +
+  scale_fill_viridis(discrete = T) +
+  scale_color_viridis(discrete=TRUE) +
+  ggtitle("Stage 1 vaccination Availibility") +
+  theme(axis.text.x = element_text(size = rel(0.5),angle = 90, vjust = 1, hjust = 1)) 
+
+p1
+
+```
+
+Graph of Stage 2
+```{r}
+
+stage2 <- filterdata[filterdata$vaccination_policy == "2",]
+
+p2 <- stage2 %>%
+  ggplot(aes(y = people_vaccinated, x = location, colour = location, fill = location)) +
+  geom_bar(position = "stack", stat = "identity") +
+  geom_point() + geom_line() +
+  scale_fill_viridis(discrete = T) +
+  scale_color_viridis(discrete=TRUE) +
+  ggtitle("Stage 2 vaccination Availibility") +
+  theme(axis.text.x = element_text(size = rel(0.5),angle = 90, vjust = 1, hjust = 1)) 
+
+p2
+
+```
+
+Graph of Stage 3
+```{r}
+
+stage3 <- filterdata[filterdata$vaccination_policy == "3",]
+
+p3 <- stage3 %>%
+  ggplot(aes(y = people_vaccinated, x = location, colour = location, fill = location)) +
+  geom_bar(position = "stack", stat = "identity") +
+  geom_point() + geom_line() +
+  scale_fill_viridis(discrete = T) +
+  scale_color_viridis(discrete=TRUE) +
+  ggtitle("Stage 3 vaccination Availibility") +
+  theme(axis.text.x = element_text(size = rel(0.5),angle = 90, vjust = 1, hjust = 1)) 
+
+p3
+```
+
+Graph of Stage 4
+```{r}
+
+stage4 <- filterdata[filterdata$vaccination_policy == "4",]
+
+p4 <- stage4 %>%
+  ggplot(aes(y = people_vaccinated, x = location, colour = location, fill = location)) +
+  geom_bar(position = "stack", stat = "identity") +
+  geom_point() + geom_line() +
+  scale_fill_viridis(discrete = T) +
+  scale_color_viridis(discrete=TRUE) +
+  ggtitle("Stage 4 vaccination Availibility") +
+  theme(axis.text.x = element_text(size = rel(0.5),angle = 90, vjust = 1, hjust = 1)) 
+
+p4
+
+```
+
+
+Graph of Stage 5
+```{r}
+
+stage5 <- filterdata[filterdata$vaccination_policy == "5",]
+
+p5 <- stage5 %>%
+  ggplot(aes(y = people_vaccinated, x = location, colour = location, fill = location)) +
+  geom_bar(position = "stack", stat = "identity") +
+  geom_point() + geom_line() +
+  scale_fill_viridis(discrete = T) +
+  scale_color_viridis(discrete=TRUE) +
+  ggtitle("Stage 5 vaccination Availibility") +
+  theme(axis.text.x = element_text(size = rel(0.5),angle = 90, vjust = 1, hjust = 1)) 
+
+p5
+```
+
+
+
+Calculate Speed
+
+
+
+France
+```{r}
+france <- clean_data[clean_data$location == "France",] 
+ggplot(france, aes(x=date, y = people_vaccinated, colour = vaccination_policy)) + 
+  geom_point() + 
+    labs(x="Date",
+         y="number of people vaccinated", 
+       title="vaccination of france at different stages of vaccination availability")+ 
+theme_bw()+
+theme(axis.text.x = element_text(size = rel(0.5),angle = 90, vjust = 1, hjust = 1))
+```
+
+
+India
+```{r}
+
+india <- clean_data[clean_data$location == "India",] 
+ggplot(india, aes(x=date, y = people_vaccinated, colour = vaccination_policy)) + 
+  geom_point() + 
+    labs(x="Date",
+         y="number of people vaccinated", 
+       title="vaccination of India at different stages of vaccination availability")+ 
+theme_bw()+
+theme(axis.text.x = element_text(size = rel(0.5),angle = 90, vjust = 1, hjust = 1))
+
+
+
+
+```
+
+All the countries
+```{r}
+
+ 
+ggplot(clean_data, aes(x=date, y = people_vaccinated, colour = vaccination_policy)) + 
+  geom_point() + 
+    labs(x="Date",
+         y="number of people vaccinated", 
+       title="vaccination of India at different stages of vaccination availability")+ 
+theme_bw()+
+theme(axis.text.x = element_text(size = rel(0.5),angle = 90, vjust = 1, hjust = 1)) +
+  facet_wrap(~location)
+
+
+
+
+
+
+
+
+
+
+```
