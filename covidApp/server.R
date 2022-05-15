@@ -204,7 +204,7 @@ shinyServer(function(input, output) {
             filter(date >= start_date & date < end_date) %>% 
             # turn all NAs into 0
             mutate(
-                across(varname,
+                across(varname_lag,
                        ~replace(., is.na(.), 0))
             )
         
