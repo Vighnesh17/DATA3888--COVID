@@ -79,29 +79,30 @@ shinyUI(
         ), ## END tabPanel
         
 
-        # Analysis plots tab page -------------------------------------------------
+        # Vaccine Time Lag tab page -----------------------------------------------
         
         tabPanel(
-            "Analysis Plots", 
+            "Vaccination Time Lag", 
             # here analysis plots + variable selections, value inputs, etc
             sidebarLayout(
                 # user inputs/selections
                 sidebarPanel(
-                    "User Inputs",
-                    selectInput(inputId = "plot_var",
-                                label = "Variable to plot",
-                                choices = num_vars),
-                    selectizeInput(inputId = "plot_countries",
-                                   label = "Countries",
-                                   choices = iso_all,
+                    strong("Select a Location"),
+                    hr(),
+                    selectizeInput(inputId = "countries_lag",
+                                   label = "Location(s)",
+                                   choices = loc_all,
                                    multiple = TRUE,
-                                   options = list(maxItems = 4))
+                                   options = list(maxItems = 3))
                 ),
                 
                 # plot area
                 mainPanel(
                     # here time series plot
-                    dygraphOutput("time_plot")
+                    dygraphOutput("timeLag_timePlot"),
+                    # time lag value - David
+                    verbatimTextOutput("timeLag_text")
+                    
                 )
             )
         ), ## END tabPanel
@@ -117,8 +118,8 @@ shinyUI(
                     strong("Predictors:"),
                     hr(),
                     # allow multiple country selection? for comparison?
-                    selectizeInput(inputId = "vacc_country",
-                                   label = "Locations",
+                    selectizeInput(inputId = "plot_countries",
+                                   label = "Location(s)",
                                    choices = loc_all,
                                    multiple = TRUE,
                                    options = list(maxItems = 4)),
@@ -137,13 +138,13 @@ shinyUI(
                 # Predictions (bottom) and time series plots of vaccination (up)
                 mainPanel(
                     # people vaccinated trend, plot on top
-                    dygraphOutput("timePlot_vacc"),
+                    dygraphOutput("time_plot"),
                     hr(),
                     # prediction of vaccination? under time series plot
                     verbatimTextOutput("prediction")
                 )
             )
-        )
+        ) ## END tabPanel
         
     )
     

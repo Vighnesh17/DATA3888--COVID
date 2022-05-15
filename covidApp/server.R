@@ -17,8 +17,6 @@ library(DT)
 
 ## load data from global.R
 
-
-# Define server logic required to draw a histogram
 shinyServer(function(input, output) {
     
     # world map of covid data
@@ -90,22 +88,22 @@ shinyServer(function(input, output) {
         #                 color = ~pal(selectedVar))
     })
     
-    ## the time series plot in Analysis Plots tab
+    ## plot for vaccination prediction (time series?)
     output$time_plot <- renderDygraph({
         # validate that user input, to avoid error message if nothing is passed on
         validate(
             need(input$plot_countries, "Please select a country.")
         )
         
-        varname = input$plot_var
+        varname = c("people_vaccinated", "people_fully_vaccinated")
         countries = input$plot_countries
         
         # subset dataset into selected variable and time, by countries (iso_code)
         covid_subset = covid_data %>% 
-            select(date, iso_code, all_of(varname)) %>% 
-            filter(iso_code %in% countries) %>% 
-            pivot_wider(names_from = iso_code,
-                        values_from = varname)
+            select(date, location, varname) %>% 
+            filter(location %in% countries) %>% 
+            pivot_wider(names_from = location,
+                        values_from = all_of(varname))
         
         # create time series
         subset.xts = xts(select(covid_subset, !date), 
@@ -141,7 +139,7 @@ shinyServer(function(input, output) {
             select(date, iso_code, varname) %>% 
             filter(iso_code %in% countries) %>% 
             pivot_wider(names_from = iso_code,
-                        values_from = varname)
+                        values_from = all_of(varname))
         
         # create time series
         subset.xts = xts(select(covid_subset, !date), 
@@ -153,22 +151,33 @@ shinyServer(function(input, output) {
             dyHighlight()
     })
     
-    ## time series plot of people vaccinated & people fully vaccinated
-    output$timePlot_vacc <- renderDygraph({
+    ## vaccination time lag dataframe subset on selected countries
+    covid_subset_lag = reactive({
+        
+        countries = input$countries_lag
+        
+        covid_data %>% 
+            # filter(iso_code %in% countries) %>% 
+            select(date, location, varname_lag) %>% 
+            filter(location %in% countries)
+    })
+    
+    ## time series plot for vaccination time lag
+    output$timeLag_timePlot <- renderDygraph({
         # validate that user input, to avoid error message if nothing is passed on
         validate(
-            need(input$vacc_country, "Please select a country.")
+            need(input$countries_lag, "Please select a country.")
         )
         
-        varname = c("people_vaccinated", "people_fully_vaccinated")
-        countries = input$vacc_country
-        
         # subset dataset into selected variable and time, by countries (location)
-        covid_subset = covid_data %>% 
-            select(date, location, varname) %>% 
-            filter(location %in% countries) %>% 
+        covid_subset = covid_subset_lag() %>% 
             pivot_wider(names_from = location,
-                        values_from = varname)
+                        values_from = all_of(varname_lag)) %>% 
+            # smoothing
+            mutate(
+                across(-date,
+                       ~lowess(x = date, y = ., f = 0.2)$y)
+            )
         
         # create time series
         subset.xts = xts(select(covid_subset, !date), 
@@ -180,6 +189,80 @@ shinyServer(function(input, output) {
             dyHighlight()
     })
     
+    ## text for vaccination time lag value
+    output$timeLag_text <- renderPrint({
+        # validate that user input, to avoid error message if nothing is passed on
+        validate(
+            need(input$countries_lag, "Please select a country.")
+        )
+        countries_lag = input$countries_lag
+        start_date = "2021-02-01"
+        end_date = "2021-08-01"
+        
+        # subset dataset into selected variable and time, by countries (location)
+        lag_covid = covid_subset_lag() %>% 
+            filter(date >= start_date & date < end_date) %>% 
+            # turn all NAs into 0
+            mutate(
+                across(varname,
+                       ~replace(., is.na(.), 0))
+            )
+        
+        # calculate time lag value
+        lag_vector <- c()
+        z = 1
+        # loop through each country
+        while (z <= length(countries_lag)){
+            # only select records for certain country and only select 1st and 2nd vaccine columns
+            lagCovid_filtered = filter(lag_covid, location == countries_lag[z])
+            combined_matrix <- cbind(lagCovid_filtered[,3], lagCovid_filtered[,4])
+            
+            # In the dataset, there are missing values. Will replace these missing values (0) with the value from the date before. Do it for both 1st and 2nd vaccine columns
+            
+            for (i in 1:nrow(combined_matrix)){
+                if (i == 1){
+                } else{
+                    if (combined_matrix[i,1] == 0){
+                        combined_matrix[i,1] = combined_matrix[i-1, 1]
+                    }
+                }
+            }
+            
+            for (j in 1:nrow(combined_matrix)){
+                if (j == 1){
+                } else{
+                    if (combined_matrix[j,2] == 0){
+                        combined_matrix[j,2] = combined_matrix[j-1, 2]
+                    }
+                }
+            }
+            
+            # Apply smoothing function to 1st and 2nd vaccine columns. f = 0.15 is an arbitrary value
+            
+            combined_matrix_smooth<- as.matrix(apply(combined_matrix, 2, Lowess, f = 0.15))
+            
+            # Store each column separately as individual matrices
+            FirstDose_matrix = as.matrix(combined_matrix_smooth[,1])
+            SecondDose_matrix = as.matrix(combined_matrix_smooth[,2])
+            
+            # Graph the 1st and 2nd vaccine percentages as a figure of interest. Need to convert back to dataframe.
+            # X axis is in days
+            combined_matrix_smooth_df = as.data.frame(combined_matrix_smooth)
+            matplot(cbind(combined_matrix_smooth_df[,1], combined_matrix_smooth_df[,2]), type ="l", lty = 1, ylab = "Percentage of Population", xlab = countries_lag[z])
+            legend("topleft", c("At Least 1 Vaccine", "2 Vaccines"), lty = 1, col=1:2)
+            
+            # Input the individual matrices into the lagValue function to find the lag between the 1st and 2nd dose for a particular country
+            lag <- lagValue(FirstDose_matrix, SecondDose_matrix, windowsize=100)
+            #store value of lag
+            lag_vector <- c(lag_vector, lag)
+            z = z + 1
+        }
+        # label the lag values with the corresponding country
+        names(lag_vector) <- countries_lag
+        print(lag_vector)
+    })
+    
+    ## text for vaccine prediction
     output$prediction <- renderPrint({
         print("placeholder for prediction output")
         # user inputs

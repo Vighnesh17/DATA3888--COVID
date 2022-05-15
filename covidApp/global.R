@@ -9,6 +9,7 @@ library(xts)
 
 ## load in covid data, enable if there is need to initiate covid_data df
 # covid_data <- read.csv("https://covid.ourworldindata.org/data/owid-covid-data.csv", stringsAsFactors = FALSE, check.names =  FALSE)
+# write.csv(covid_data, "data/covid_data_latest.csv")
 
 ## load in iso data, enable if there is need to initiate iso_data df
 # isourl = "https://gist.githubusercontent.com/metal3d/5b925077e66194551df949de64e910f6/raw/c5f20a037409d96958553e2eb6b8251265c6fd63/country-coord.csv"
@@ -49,3 +50,41 @@ any_not_na = function(x) {any(!is.na(x))}
 # here a simiple linear model, demonstration only
 lmfit = lm(people_vaccinated ~ population + gdp_per_capita + total_vaccinations,
            data = covid_data %>% select(where(is.numeric)))
+
+## varname for time lag df
+varname_lag = c("people_vaccinated_per_hundred", "people_fully_vaccinated_per_hundred")
+
+## smoother function, returns smoothed column
+Lowess <- function(data, f) {
+  lowess_fit <- lowess(data, f = f)
+  return(lowess_fit$y)
+}
+
+## lag value calculation function
+lagValue <- function(FirstDose, SecondDose, windowsize) {
+  # vector for all measures of distance between matrices
+  dist_vector = c()
+  i = 1
+  while (i <= windowsize){
+    # select different subsets of matrices, calculate the distances between the 2 matrices and store the distance. This while loop will contain information for 1st vaccine lag
+    FirstDose_subset <- FirstDose[i:nrow(FirstDose),1]
+    SecondDose_subset <- SecondDose[1:(1 - i + nrow(SecondDose)),1]
+    dist_FirstDose <- proxy::dist(t(FirstDose_subset), t(SecondDose_subset), method = "cosine")
+    dist_vector = c(dist_vector, dist_FirstDose)
+    i = i + 1
+  }
+  
+  
+  j = 1
+  while (j <= windowsize){
+    # select different subsets of matrices, calculate the distances between the 2 matrices and store the distance. This while loop will contain information for 2nd vaccine lag
+    FirstDose_subset1 <- FirstDose[1:(1 - j + nrow(FirstDose)),1]
+    SecondDose_subset1 <- SecondDose[j:nrow(SecondDose),1]
+    dist_SecondDose <- proxy::dist(t(FirstDose_subset1), t(SecondDose_subset1), method = "cosine")
+    dist_vector = c(dist_vector, dist_SecondDose)
+    j = j + 1
+  }
+  
+  # select min value index which corresponds to value of the lag
+  return(which.min(dist_vector))
+}  
