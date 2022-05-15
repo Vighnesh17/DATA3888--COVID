@@ -1,0 +1,346 @@
+---
+title: "Graph"
+author: "Xinzhi Wang"
+date: '2022-05-15'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(ggplot2)
+library(ggthemes)
+library(maps)
+library(DT)
+library(RSpectra)
+library(GEOquery) 
+library(R.utils)
+library(tuneR)
+library(randomForest)
+library(stringdist)
+library(plotly)
+library(ggpubr)
+```
+
+# Load Data
+```{r}
+covid <- read.csv("owid-covid-data.csv")
+policy <- read.csv("covid-vaccination-policy.csv")
+```
+
+```{r}
+countries = c("United States", "India", "Brazil", "France", "United Kingdom", "Russia", 
+              "Turkey", "Italy", "Germany", "Spain", "Argentina",
+                "Iran", "Colombia", "Poland", 'Mexico', "Netherlands", 
+              "Indonesia", "Ukraine", "South Africa", "Philippines", "Peru", "Belgium",
+                "Czechia", "Japan", "Israel")
+
+
+covid <- covid %>% filter(location %in% countries)
+policy <- policy %>% filter(Entity %in% countries)
+```
+
+
+```{r}
+data <- covid %>% 
+  select(iso_code, continent, location, date, total_vaccinations, total_vaccinations_per_hundred,new_people_vaccinated_smoothed_per_hundred,  new_people_vaccinated_smoothed, new_vaccinations, new_vaccinations_smoothed, new_vaccinations_smoothed_per_million, total_boosters, population, people_vaccinated, new_deaths)
+
+data <- merge(data, policy, by.x = c('iso_code', "date", "location"), by.y = c('Code', 'Day', "Entity"))
+
+```
+
+
+```{r, figures-side, fig.show="hold", out.width="50%"}
+us_data <- data[data$location == "United States", ]
+us_data$date <- as.Date(us_data$date)
+  
+us_policy <- us_data %>%
+  group_by(vaccination_policy) %>%
+  arrange(date) %>% 
+  slice(1L) %>%
+  select(iso_code, location, date, vaccination_policy, new_vaccinations_smoothed, population, people_vaccinated, new_deaths, new_people_vaccinated_smoothed)
+
+india_data <- data[data$location == "India", ]
+india_data$date <- as.Date(india_data$date)
+  
+india_policy <- india_data %>%
+  group_by(vaccination_policy) %>%
+  arrange(date) %>% 
+  slice(1L) %>%
+  select(iso_code, location, date, vaccination_policy, new_vaccinations_smoothed, population, people_vaccinated, new_deaths, new_people_vaccinated_smoothed)
+
+brazil_data <- data[data$location == "Brazil", ]
+brazil_data$date <- as.Date(brazil_data$date)
+  
+brazil_policy <- brazil_data %>%
+  group_by(vaccination_policy) %>%
+  arrange(date) %>% 
+  slice(1L) %>%
+  select(iso_code, location, date, vaccination_policy, new_vaccinations_smoothed, population, people_vaccinated, new_deaths, new_people_vaccinated_smoothed)
+
+
+Netherlands_data <- data[data$location == "Netherlands", ]
+Netherlands_data$date <- as.Date(Netherlands_data$date)
+  
+Netherlands_policy <- Netherlands_data %>%
+  group_by(vaccination_policy) %>%
+  arrange(date) %>% 
+  slice(1L) %>%
+  select(iso_code, location, date, vaccination_policy, new_vaccinations_smoothed, population, people_vaccinated, new_deaths, new_people_vaccinated_smoothed)
+
+
+
+philippines_data <- data[data$location == "Philippines", ]
+philippines_data$date <- as.Date(philippines_data$date)
+  
+philippines_policy <- philippines_data %>%
+  group_by(vaccination_policy) %>%
+  arrange(date) %>% 
+  slice(1L) %>%
+  select(iso_code, location, date, vaccination_policy, new_vaccinations_smoothed, population, people_vaccinated, new_deaths, new_people_vaccinated_smoothed)
+
+
+
+
+israel_data <- data[data$location == "Israel", ]
+israel_data$date <- as.Date(israel_data$date)
+  
+israel_policy <- israel_data %>%
+  group_by(vaccination_policy) %>%
+  arrange(date) %>% 
+  slice(1L) %>%
+  select(iso_code, location, date, vaccination_policy, new_vaccinations_smoothed, population, people_vaccinated, new_deaths, new_people_vaccinated_smoothed)
+```
+
+
+
+```{r}
+us_scale <- (max(us_data$people_vaccinated[!is.na(us_data$people_vaccinated)]) / us_data$population[1]) / max(us_data$new_vaccinations_smoothed[!is.na(us_data$new_vaccinations_smoothed)])
+
+us <- ggplot() + 
+  geom_point(data = us_data, aes(x = as.Date(date), y = new_vaccinations_smoothed, group = as.factor(vaccination_policy), color = as.factor(vaccination_policy)), size = 0.6) +
+  geom_line(data = us_data, aes(x = as.Date(date), y = people_vaccinated / (population * us_scale)), color = "darkblue", size = 1) + 
+  scale_y_continuous(name = "New vaccination", sec.axis = sec_axis(~.*us_scale , name = "The ratio of people vaccinated")
+  ) + geom_segment(data = us_policy, aes(x = as.Date(date), xend=as.Date(date), y =0, yend=new_vaccinations_smoothed, colour = as.factor(vaccination_policy)), size = 0.8) + 
+  ggtitle("United States") + 
+  xlab("Date") + 
+  labs(color = "Avalability stage")
+
+
+india_scale <- (max(india_data$people_vaccinated[!is.na(india_data$people_vaccinated)]) / india_data$population[1]) / max(india_data$new_vaccinations_smoothed[!is.na(india_data$new_vaccinations_smoothed)])
+
+india <- ggplot() + 
+  geom_point(data = india_data, aes(x = as.Date(date), y = new_vaccinations_smoothed, group = as.factor(vaccination_policy), color = as.factor(vaccination_policy)), size = 0.6) +
+  geom_line(data = india_data, aes(x = as.Date(date), y = people_vaccinated / (population * india_scale)), color = "darkblue", size = 1) + 
+  scale_y_continuous(name = "New vaccination", sec.axis = sec_axis(~.*india_scale , name = "The ratio of people vaccinated")
+  ) + geom_segment(data = india_policy, aes(x = as.Date(date), xend=as.Date(date), y =0, yend=new_vaccinations_smoothed, colour = as.factor(vaccination_policy)), size = 0.8) + 
+  ggtitle("India") + 
+  xlab("Date") + 
+  labs(color = "Avalability stage") + theme(legend.position = "none")
+
+
+brazil_scale <- (max(brazil_data$people_vaccinated[!is.na(brazil_data$people_vaccinated)]) / brazil_data$population[1]) / max(brazil_data$new_vaccinations_smoothed[!is.na(brazil_data$new_vaccinations_smoothed)])
+
+brazil <- ggplot() + 
+  geom_point(data = brazil_data, aes(x = as.Date(date), y = new_vaccinations_smoothed, group = as.factor(vaccination_policy), color = as.factor(vaccination_policy)), size = 0.6) +
+  geom_line(data = brazil_data, aes(x = as.Date(date), y = people_vaccinated / (population * brazil_scale)), color = "darkblue", size = 1) + 
+  scale_y_continuous(name = "New vaccination", sec.axis = sec_axis(~.*brazil_scale , name = "The ratio of people vaccinated")
+  ) + geom_segment(data = brazil_policy, aes(x = as.Date(date), xend=as.Date(date), y =0, yend=new_vaccinations_smoothed, colour = as.factor(vaccination_policy)), size = 0.8) + 
+  ggtitle("Brazil") + 
+  xlab("Date") + 
+  labs(color = "Avalability stage") + theme(legend.position = "none")
+```
+
+
+
+```{r, warning=FALSE, results='hide', dpi = 200, fig.align='center'}
+ggarrange(
+  us, ggarrange(india, brazil), nrow = 2,
+  common.legend = TRUE, legend = "bottom"
+  )
+```
+
+
+
+```{r}
+us_scale <- (max(us_data$new_deaths[!is.na(us_data$new_deaths)]) / us_data$population[1]) / max(us_data$new_vaccinations_smoothed[!is.na(us_data$new_vaccinations_smoothed)])
+
+us_death <- ggplot() + 
+  geom_point(data = us_data, aes(x = as.Date(date), y = new_vaccinations_smoothed, group = as.factor(vaccination_policy), color = as.factor(vaccination_policy)), size = 0.6) +
+  geom_line(data = us_data, aes(x = as.Date(date), y = new_deaths / (population * us_scale)), color = "darkblue", size = 0.5, alpha = 0.3) + 
+  scale_y_continuous(name = "New vaccination", sec.axis = sec_axis(~.*us_scale , name = "Death ratio")
+  ) + 
+  ggtitle("United States") + 
+  xlab("Date") + 
+  labs(color = "Avalability stage")
+
+
+india_scale <- (max(india_data$new_deaths[!is.na(india_data$new_deaths)]) / india_data$population[1]) / max(india_data$new_vaccinations_smoothed[!is.na(india_data$new_vaccinations_smoothed)])
+
+india_death <- ggplot() + 
+  geom_point(data = india_data, aes(x = as.Date(date), y = new_vaccinations_smoothed, group = as.factor(vaccination_policy), color = as.factor(vaccination_policy)), size = 0.6) +
+  geom_line(data = india_data, aes(x = as.Date(date), y = new_deaths / (population * india_scale)), color = "darkblue", size = 0.5, alpha = 0.3) + 
+  scale_y_continuous(name = "New vaccination", sec.axis = sec_axis(~.*india_scale , name = "Death ratio")
+  ) +  
+  ggtitle("India") + 
+  xlab("Date") + 
+  labs(color = "Avalability stage") + theme(legend.position = "none")
+
+
+brazil_scale <- (max(brazil_data$new_deaths[!is.na(brazil_data$new_deaths)]) / brazil_data$population[1]) / max(brazil_data$new_vaccinations_smoothed[!is.na(brazil_data$new_vaccinations_smoothed)])
+
+brazil_death <- ggplot() + 
+  geom_point(data = brazil_data, aes(x = as.Date(date), y = new_vaccinations_smoothed, group = as.factor(vaccination_policy), color = as.factor(vaccination_policy)), size = 0.6) +
+  geom_line(data = brazil_data, aes(x = as.Date(date), y = new_deaths / (population * brazil_scale)), color = "darkblue", size = 0.5, alpha = 0.3) + 
+  scale_y_continuous(name = "New vaccination", sec.axis = sec_axis(~.*brazil_scale , name = "Death ratio")
+  ) +  
+  ggtitle("Brazil") + 
+  xlab("Date") + 
+  labs(color = "Avalability stage") + theme(legend.position = "none")
+
+
+
+Netherlands_scale <- (max(Netherlands_data$new_deaths[!is.na(Netherlands_data$new_deaths)]) / Netherlands_data$population[1]) / max(Netherlands_data$new_vaccinations_smoothed[!is.na(Netherlands_data$new_vaccinations_smoothed)])
+
+Netherlands_death <- ggplot() + 
+  geom_point(data = Netherlands_data, aes(x = as.Date(date), y = new_vaccinations_smoothed, group = as.factor(vaccination_policy), color = as.factor(vaccination_policy)), size = 0.6) +
+  geom_line(data = Netherlands_data, aes(x = as.Date(date), y = new_deaths / (population * Netherlands_scale)), color = "darkblue", size = 0.5, alpha = 0.3) + 
+  scale_y_continuous(name = "New vaccination", sec.axis = sec_axis(~.*Netherlands_scale , name = "Death ratio")
+  ) +  
+  ggtitle("Netherlands") + 
+  xlab("Date") + 
+  labs(color = "Avalability stage") + theme(legend.position = "none")
+
+
+
+
+
+
+
+philippines_scale <- (max(philippines_data$new_deaths[!is.na(philippines_data$new_deaths)]) / philippines_data$population[1]) / max(philippines_data$new_vaccinations_smoothed[!is.na(philippines_data$new_vaccinations_smoothed)])
+
+philippines_death <- ggplot() + 
+  geom_point(data = philippines_data, aes(x = as.Date(date), y = new_vaccinations_smoothed, group = as.factor(vaccination_policy), color = as.factor(vaccination_policy)), size = 0.6) +
+  geom_line(data = philippines_data, aes(x = as.Date(date), y = new_deaths / (population * philippines_scale)), color = "darkblue", size = 0.5, alpha = 0.3) + 
+  scale_y_continuous(name = "New vaccination", sec.axis = sec_axis(~.*philippines_scale , name = "Death ratio")
+  ) + 
+  ggtitle("Philippines") + 
+  xlab("Date") + 
+  labs(color = "Avalability stage") + theme(legend.position = "none")
+
+
+
+
+
+
+
+
+israel_scale <- (max(israel_data$new_deaths[!is.na(israel_data$new_deaths)]) / israel_data$population[1]) / max(israel_data$new_vaccinations_smoothed[!is.na(israel_data$new_vaccinations_smoothed)])
+
+israel_death <- ggplot() + 
+  geom_point(data = israel_data, aes(x = as.Date(date), y = new_vaccinations_smoothed, group = as.factor(vaccination_policy), color = as.factor(vaccination_policy)), size = 0.6) +
+  geom_line(data = israel_data, aes(x = as.Date(date), y = new_deaths / (population * israel_scale)), color = "darkblue", size = 0.5, alpha = 0.3) + 
+  scale_y_continuous(name = "New vaccination", sec.axis = sec_axis(~.*israel_scale , name = "Death ratio")
+  ) + 
+  ggtitle("Israel") + 
+  xlab("Date") + 
+  labs(color = "Avalability stage") + theme(legend.position = "none")
+
+```
+
+```{r, warning=FALSE, results='hide', dpi = 200, fig.align='center'}
+ggarrange(
+  us_death, india_death, brazil_death, Netherlands_death, philippines_death, israel_death, nrow = 3, ncol=2,
+  common.legend = TRUE, legend = "bottom"
+  )
+```
+
+
+
+```{r}
+get_slope <- function(country_data, country_policy, country) {
+  i = 1
+  country_slope <- data.frame(policy = as.factor(1:5), speed = rep(0, 5), country = rep(country, 5))
+  
+  while (i <= length(country_policy$vaccination_policy)) {
+    current_policy = country_policy$vaccination_policy[i]
+    
+    if (current_policy > 0 & !is.na(country_policy$people_vaccinated[country_policy$vaccination_policy == current_policy])) {
+      temp_people <- country_data$people_vaccinated[country_data$vaccination_policy == current_policy & !is.na(country_data$people_vaccinated)] / country_data$population[1]
+      
+      temp_index <- 1:length(temp_people)
+      
+      if (length(temp_index) > 1) {
+        # Linear model
+        mod <- lm(temp_people ~ temp_index)
+        
+        # Extract and store the slope
+        country_slope$speed[country_slope$policy == current_policy] <- summary(mod)$coefficients[2,1]
+      } else {
+        # Some countries only have a policy for 1 day -> treat the slope as 0
+        country_slope$speed[country_slope$policy == current_policy] <- 0
+      }
+      
+    } 
+    
+    i <- i + 1
+    
+  }
+  
+  return(country_slope)
+}
+```
+
+
+```{r}
+country_slope = NULL
+
+for (country in countries) {
+  country_data <- data[data$location == country, ]
+  
+  country_policy <- country_data[!is.na(country_data$people_vaccinated), ] %>%
+    group_by(vaccination_policy) %>%
+    arrange(date) %>% 
+    slice(1L) %>%
+    select(iso_code, location, date, vaccination_policy, new_vaccinations_smoothed, population, people_vaccinated)
+  
+  temp_slope <- get_slope(country_data, country_policy, country)
+  
+  country_slope <- rbind(country_slope, temp_slope)
+}
+
+```
+
+
+```{r warning=FALSE, results='hide', dpi = 200, fig.align='center'}
+global <- ggplot(data = country_slope, aes(x = country, y = speed, fill = as.factor(policy))) + 
+  geom_bar(stat="identity", position=position_dodge()) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + 
+  scale_y_sqrt() + 
+  ggtitle("All countries") + 
+  xlab("Countries") + 
+  ylab("Slope") + 
+  labs(fill = "Avalability stage")
+
+global
+```
+
+```{r warning=FALSE, results='hide', dpi = 200, fig.align='center'}
+global + facet_grid(rows = vars(policy))
+```
+
+
+
+
+
+
+
+
+
+
+
+
