@@ -1,0 +1,88 @@
+---
+title: "policy_extract"
+author: "Xinzhi Wang"
+date: '2022-05-16'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(ggplot2)
+library(ggthemes)
+library(maps)
+library(DT)
+library(RSpectra)
+library(GEOquery) 
+library(R.utils)
+library(tuneR)
+library(randomForest)
+library(stringdist)
+library(plotly)
+library(ggpubr)
+```
+
+# Load Data
+```{r}
+covid <- read.csv("owid-covid-data.csv")
+policy <- read.csv("covid-vaccination-policy.csv")
+```
+
+
+```{r}
+end <- as.Date("2021-10-31")
+start <- as.Date("2021-04-01")
+```
+
+
+```{r}
+data <- covid %>%
+  filter(date >= "2021-04-01", date <= "2021-10-31") %>% 
+  select(iso_code, continent, location, date)
+
+data <- merge(data, policy, by.x = c('iso_code', "date", "location"), by.y = c('Code', 'Day', "Entity"))
+```
+
+
+```{r}
+countries <- unique(data$location)
+```
+
+```{r}
+location <- NULL
+labels <- NULL
+
+for (c in countries) {
+  country_data <- data[data$location == c, ]
+  temp_table <- table(country_data$vaccination_policy)
+  temp_data <- as.data.frame(temp_table)
+  names(temp_data) <- c("policy", "freq")
+  label <- temp_data$policy[temp_data$freq == max(temp_table)]
+  
+  location <- append(location, c)
+  labels <- append(labels, label)
+}
+
+```
+
+
+```{r}
+vaccination_policy <- data.frame(location = location, 
+                                 policy = labels)
+write.csv(vaccination_policy, ".\\vaccination_policy", row.names = FALSE)
+```
+
+
+
+```{r}
+p <- read.csv("vaccination_policy")
+```
+
+
+
+
+
