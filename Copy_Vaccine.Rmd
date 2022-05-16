@@ -1,0 +1,560 @@
+---
+title: "Copy_Vaccine"
+author: "Sylvia Liu"
+date: "16/05/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(readxl)
+library(tibble)
+library(ggplot2)
+library(ggthemes)
+library(maps)
+
+library(plotly) # Interactive data visualizations
+library(viridis) # Color gradients
+library(lubridate)
+
+library(randomForest) 
+library(ranger)       # a faster implementation of randomForest
+library(caret)        # performe many machine learning models
+library(broom)  # try: `install.packages("backports")` if diretly installing broom gives an error
+
+library(reshape2) # to use melt()
+```
+
+## Reading data
+```{r}
+covid_data <- read.csv("owid-covid-data-160222.csv")
+covid_data$date <- as.Date(covid_data$date, format = "%d/%m/%y")
+#head(covid_data)
+```
+
+## Vaccinations progress  
+
+### EDA - total_vaccinations
+```{r}
+# Selecting countries with enough vaccination data
+# Set a baseline that the country we selected should has at least 180 days(i.e. 6 months) recorded for the value of vaccinations
+
+valid_countries_df <- covid_data %>%  
+     filter(!is.na(total_vaccinations) & !is.na(population)) %>%
+     group_by(iso_code,location) %>% 
+    dplyr::summarise(count=n())  %>% 
+     filter(count >= 180 & !grepl("^OWID.", iso_code))  %>% ungroup()# Remove continent and income groups
+
+    
+selected_countries <- valid_countries_df$location
+# selected_countries
+
+filter_avaiable_date <- function(country) {
+  data <- covid_data %>% filter(location == country) %>% filter(!is.na(total_vaccinations) & total_vaccinations != 0) %>% arrange(date)
+  start_date <- data %>% select(date) %>% slice(1L) %>% pull()
+  end_date <- data %>% select(date) %>% slice_tail() %>% pull()
+  p <- ggplot(data, aes(x = date, y = total_vaccinations)) +
+    geom_point()+ 
+    geom_line(aes(x = date, y = total_vaccinations)) +
+    ggtitle(country)+
+    scale_x_date(limits = as.Date(c("2020-12-25","2022-2-22")))
+  
+  return(list(start_date=as.Date(start_date), end_date=as.Date(end_date), p=p))
+}
+
+results_d <- c(NA,NA,NA) #c("Country name", start_date, end_date)
+for (i in selected_countries) {
+  res <- filter_avaiable_date(i)
+  start_date <- res$start_date
+  end_date <- res$end_date
+  results_d <- rbind(results_d,c(i,start_date,end_date))
+  print(res$p)
+}
+```
+> From the plot we can observed that，in generl, the overlapping time period for the vaccine surge in each country is April 2021 to October 2021, a total of eight months. We will use this time period as a criterion for subsequent modelling on VRI and factors.
+
+### Vaccine Roll-Out Index (VRI) values for the countries
+
+(Reference: https://www.mdpi.com/2076-393X/10/2/194/htm)
+
+> **Estimate Vaccine Uptakes Rates r* for Countries**
+"The logistic growth model was used to estimate the vaccination uptake rate. In the logistic model, the cumulative number of doses administered c(t) satisfies the following equation: $$c(t) = \frac{K}{1+a\cdot{e}^{-r\cdot t}}$$,"_ where K is the total vaccinations administered at the end of the date recorded, r is the vaccination uptake rate(i.e. speed), and $\frac{K}{1+a} = c(0)$ is the initial number of doses given.
+
+```{r}
+
+set.seed(3888)
+
+### Estimate Vaccine Uptakes Rates r* for Countries
+# Step 1: A function that returns the logistic model used for estimating r*
+
+cutoff_date_start = "2021-4-01" # As described in the EDA section
+cutoff_date_end = "2021-10-31" # As described in the EDA section
+
+estimate_uptake_rate <- function(country) {
+  
+  data <- covid_data %>% filter(location == country) %>% filter(!is.na(total_vaccinations) & total_vaccinations != 0) %>% arrange(date) %>% filter(date <= as.Date(cutoff_date_end) & date >= cutoff_date_start) 
+  K <- data %>% select(total_vaccinations) %>% slice_tail() %>% pull()
+  
+  ## Calculate t by ranking the date
+  data$t <- rank(data$date)
+      
+  ## Taking the model to get fitted
+  x <- data$t-1
+  y <- data$total_vaccinations
+  m <- nls( y ~ (K / (1 + a*exp(-r*x))), start = list(a=0.01,r=0.01),control=nls.control(maxiter=200)) #a,r are the coefficients    
+  
+  return(list(model=m))
+  
+}
+
+# Example
+res_nls  = estimate_uptake_rate("Japan")
+summary(res_nls$m)
+```
+
+**Evaluation of the metric on est.r**
+```{r}
+## Step2: Another function for evaluating the logistic model we created for the estimate r (r*), 
+## including fitted plots, correlation values and residual values
+evaluate_est_r <- function(country, m) {
+  
+  data <- covid_data %>% 
+    filter(location == country) %>% 
+    filter(!is.na(total_vaccinations) & total_vaccinations != 0) %>% 
+    arrange(date)  %>% filter(date <= as.Date(cutoff_date_end) & date >= cutoff_date_start) 
+  
+  # goodness of fit
+  corr = round(cor(data$total_vaccinations, predict(m)),4)
+     
+  # minimized residual value
+  resid = round(sum(resid(m)^2),4)
+     
+  # Plot fitted values vs true values
+  p <- ggplot(data, aes(x = date, y = total_vaccinations)) +
+  geom_point()+
+  geom_line(aes(x = date, y = total_vaccinations), color="green")+
+  geom_line(aes(x=date,y=predict(m)), color="blue") 
+  
+  return(list(plot=p,corr=corr,resid=resid))
+}
+
+# Example:
+eval_res  = evaluate_est_r("Japan",res_nls$m)
+eval_res$plot
+paste("goodness of fit:",eval_res$corr)
+paste("minimized residual value",eval_res$resid)
+
+```
+
+> Define and Calculate Vaccine Roll-Out Index (VRI) 
+"The Vaccine Roll-out Index (VRI) for a country was defined as follows: $$VRI=r\cdot \frac{d}{N}$$," where r is the vaccination uptake rate as defined in the previous section, d is the total vaccinations, and N is the population. 
+
+**VRI was used as an index to compare the overall vaccination progression among different countries, as it reflects both the speed and the density/extend.**
+
+```{r}
+# Step 3 calculate VRI using: est_rate * d/N
+## TODO: adding constraints on spec_date, can only have date in range 2021-04-01 ~ 2021-10-31
+cal_VRI <- function(country, est_rate, spec_date) {
+  data <- covid_data %>%  filter(location == country) %>% filter(!is.na(total_vaccinations) & total_vaccinations != 0) %>% arrange(date) %>% filter(date <= as.Date(spec_date) & date >= cutoff_date_start) 
+  if (nrow(data) != 0) {
+    d <- data %>% select(total_vaccinations) %>% slice_tail() %>% pull()
+    N <- data %>% filter(!is.na(population)) %>% select(population) %>% slice_tail() %>% pull()
+    VRI = est_rate * d/N
+  }
+  else {  ## there's no total_vaccinations data recorded ahead of this time
+    VRI = 0
+  }
+ 
+  return(vri=VRI)
+  
+}
+
+
+```
+
+
+> Comment: The function could be adjusted accordingly for the shiny app:
+- Changing a single end date to a range of dates.
+
+
+_Side Note: The date user entered should be in between the_ `start_date` _and_ `end_date`.
+### Calculate `est.r` and `VRI` for all countries with no empty values and 0s in `toal_vaccinations` column within the input date
+```{r}
+
+# Calculate est_r, using the whole dataset available to estimate r* (more precise)
+results_r <- c(NA,NA) #c("Country name", est_r)
+for (i in selected_countries) {
+  res_model <- estimate_uptake_rate(i)$model
+  results_r <- rbind(results_r,c(i,round(summary(res_model)$parameters[2],4)))
+}
+results_r <- results_r[-1,]
+colnames(results_r) <- c("Location","Est.r")
+results_r <- data.frame(results_r)
+results_r$Est.r <- as.double(results_r$Est.r)
+#head(results_r)
+results_r
+```
+
+
+### The association between vaccination uptake rate and social-economic factors
+
+#### Merging datasets
+
+**I have removed the government trust dataset as it only contains OECD countries**
+```{r}
+
+corruption <- read_xlsx("CPI2020_GlobalTablesTS_210125.xlsx", sheet=1,skip=2)
+corruption <- corruption %>% select (c("ISO3", "CPI score 2020")) 
+#corruption
+
+happiness <- read_csv("happiness-cantril-ladder.csv")
+happiness <- happiness %>% group_by(Code) %>%
+  arrange(Year) %>%
+  filter(!is.na(`Life satisfaction in Cantril Ladder (World Happiness Report 2021)`)) %>%
+  dplyr::summarise(satisfaction=last(`Life satisfaction in Cantril Ladder (World Happiness Report 2021)`)) 
+
+covid_grouped <- covid_data  %>% group_by(iso_code) %>% filter(location %in% selected_countries) %>% 
+  arrange(date) %>% 
+  slice_tail()
+
+joint_data <- merge(covid_grouped,corruption,  by.x=c("iso_code"), by.y=c("ISO3"))
+
+joint_data <- merge(joint_data,happiness, by.x=c("iso_code"), by.y=c("Code"))
+joint_data
+
+# GHE-INDEX
+ghs <- read_csv("2021-GHS-Index-April-2022.csv")
+ghs <- ghs %>% filter(Year == 2021) %>% select(Country,`OVERALL SCORE`)
+merge(joint_data, ghs,  by.x=c("location"), by.y=c("Country"))
+
+joint_data <- merge(joint_data, ghs,  by.x=c("location"), by.y=c("Country"))
+colnames(joint_data)[70] <- "GHS_score"
+joint_data
+```
+
+Merge joint covid data with VRI.
+```{r}
+
+results_vri <- c(NA,NA) #c("Country name", VRI)
+
+for (i in c(1:nrow(results_r))) {
+  vri = cal_VRI(results_r$Location[i],results_r$Est.r[i], cutoff_date_end)
+  results_vri <- rbind(results_vri,c(results_r$Location[i],round(vri,4)))
+}
+results_vri <- results_vri[-1,] # removing the first pair of NAs
+colnames(results_vri) <- c("Location","VRI")
+results_vri <- data.frame(results_vri)
+results_r$VRI <- as.double(results_vri$VRI)
+results_vri
+
+# joint_data
+vri_covid_cov_data <- merge(joint_data,results_vri,by.x=c("location"), by.y=c("Location"))
+vri_covid_cov_data$VRI <- as.double(vri_covid_cov_data$VRI)
+vri_covid_cov_data
+```
+
+
+#### Selecting Covariates
+
+##### Demographic factors (scatter plots)
+Variables: `population_density`, age(`aged_65_older`/`aged_70_older`), `gdp_per_capita`, 
+
+```{r}
+# Basic scatter plot
+df <- vri_covid_cov_data %>% filter((VRI < 0.07)& !is.na(population_density) # set a threshold to remove outlier
+                                    &!is.na(gdp_per_capita) &!is.na(aged_65_older)&
+                                      !is.na(extreme_poverty)&
+                                      !is.na(human_development_index)& 
+                                      !is.na(cardiovasc_death_rate)& 
+                                      !is.na(diabetes_prevalence)&
+                                      !is.na(hospital_beds_per_thousand)) %>% 
+                                      
+                            select(c(location,VRI,population_density,gdp_per_capita,aged_65_older,
+                                     `CPI score 2020`,
+                                     satisfaction,extreme_poverty,human_development_index,life_expectancy,
+                                      cardiovasc_death_rate,diabetes_prevalence,
+                                      hospital_beds_per_thousand, GHS_score)) 
+df
+```
+
+
+```{r}
+ggplot(df, aes(x=VRI, y=population_density)) + geom_point() + ggtitle("Population density vs Vaccine Roll-out Index(VRI)") + ylim(c(0,500))
+ggplot(df, aes(x=VRI, y=gdp_per_capita)) + geom_point() + ggtitle("GDP per capita vs Vaccine Roll-out Index(VRI)")
+ggplot(df, aes(x=VRI, y=aged_65_older)) + geom_point() + ggtitle("Aged over 65 vs Vaccine Roll-out Index(VRI)")
+```
+
+##### Social and Economic
+Variables: Stringency(`stringency_index`), trust(`share_who _trust_government`), corruption(`CPI score 2020`), happiness(`satisfaction`), `extreme_poverty`, `human_development_index`, `life_expectancy`.
+
+Remove the stringency_index as there's not enough data.
+```{r}
+#ggplot(df, aes(x=VRI, y= stringency_index)) + geom_point() + ggtitle("Stringency vs Vaccine Roll-out Index(VRI)")
+ggplot(df, aes(x=VRI, y=`CPI score 2020`)) + geom_point() + ggtitle("Corruption vs Vaccine Roll-out Index(VRI)")
+#ggplot(df, aes(x=VRI, y= `Trust the national government in this country`)) + geom_point() + ggtitle("Trust in government vs Vaccine Roll-out Index(VRI)")
+ggplot(df, aes(x=VRI, y= satisfaction)) + geom_point() + ggtitle("Happiness vs Vaccine Roll-out Index(VRI)")
+ggplot(df, aes(x=VRI, y= extreme_poverty)) + geom_point() + ggtitle("Extreme Poverty vs Vaccine Roll-out Index(VRI)")
+ggplot(df, aes(x=VRI, y= human_development_index)) + geom_point() + ggtitle("Human Development Index vs Vaccine Roll-out Index(VRI)")
+ggplot(df, aes(x=VRI, y= life_expectancy)) + geom_point() + ggtitle("Life Expectancy vs Vaccine Roll-out Index(VRI)")
+
+```
+
+##### Health
+variables: `cardiovasc_death_rate`/`diabetes_prevalence`, smokers?
+```{r}
+ggplot(df, aes(x=VRI, y= cardiovasc_death_rate)) + geom_point() + ggtitle("Cardiovasc Death Rate vs Vaccine Roll-out Index(VRI)")
+ggplot(df, aes(x=VRI, y= diabetes_prevalence)) + geom_point() + ggtitle("Diabetes Prevalence vs Vaccine Roll-out Index(VRI)")
+#hospital_beds_per_thousand
+ggplot(df, aes(x=VRI, y= hospital_beds_per_thousand)) + geom_point() + ggtitle("hospital_beds_per_thousand vs Vaccine Roll-out Index(VRI)")
+ggplot(df, aes(x=VRI, y= GHS_score)) + geom_point() + ggtitle("GHS vs Vaccine Roll-out Index(VRI)")
+```
+
+##### Correlation Check
+```{r}
+# correlation matrix
+cor_mat <- round(cor(df %>% select(-location),method="spearman"),2)# for non-linear correlation (non-parametric)
+
+## Reorder the correlation matrix
+# Refernce: http://www.sthda.com/english/wiki/ggplot2-quick-correlation-matrix-heatmap-r-software-and-data-visualization
+
+reorder_cormat <- function(cor_mat){
+  # Use correlation between variables as distance
+  dd <- as.dist((1-cor_mat)/2)
+  hc <- hclust(dd)
+  return (cor_mat[hc$order, hc$order])
+}
+
+```
+
+
+```{r}
+## Plotting heatmap
+plot_heatmap <- function(cor_mat){
+  
+  cor_mat <- reorder_cormat(cor_mat)
+
+  ## Remove redundant information (taking the upper triangles values)
+  cor_mat[lower.tri(cor_mat)]<- NA
+  cor_mat <- melt(cor_mat, na.rm = TRUE)
+  
+  ggheatmap <- ggplot(cor_mat, aes(Var2, Var1, fill = value))+
+ geom_tile(color = "white")+
+ scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab", 
+    name="Spearman\nCorrelation") +
+  theme_minimal()+ # minimal theme
+ theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+    size = 8, hjust = 1))+
+ coord_fixed()
+
+  ggheatmap + 
+geom_text(aes(Var2, Var1, label = value), color = "black", size = 3) +
+  theme(
+  axis.title.x = element_blank(),
+  axis.title.y = element_blank(),
+  panel.grid.major = element_blank(),
+  panel.border = element_blank(),
+  panel.background = element_blank(),
+  axis.ticks = element_blank(),
+  legend.justification = c(1, 0),
+  legend.position = c(0.6, 0.7),
+  legend.direction = "horizontal")+
+  guides(fill = guide_colorbar(barwidth = 7, barheight = 1,
+                title.position = "top", title.hjust = 0.5))
+
+}
+
+plot_heatmap(cor_mat)
+
+```
+
+#### Modeeling (RF)
+
+https://topepo.github.io/caret/recursive-feature-elimination.html#backwards-selection
+
+##### Check correlation
+```{r}
+df <- df %>% select(-location)
+cor_mat <- round(cor(df,method="spearman"),2)# for non-linear correlation
+## Remove redundant information (taking the upper triangles values)
+cor_mat[lower.tri(cor_mat)]<- NA
+cor_mat <- melt(cor_mat, na.rm = TRUE)
+as.data.frame(cor_mat) %>% filter(value > 0.8 & value != 1)
+```
+
+
+
+##### Split data into training and testing
+```{r}
+ind <- createDataPartition(df$VRI, p = .80,list=FALSE) 
+train <- df[ind,]
+X_test <- df[-ind,] %>% select(-VRI)
+y_test <- df[-ind,] %>% select(VRI)
+dim(train)
+dim(X_test)
+train
+
+```
+
+
+##### Tune models on training data with all predictors using grid search with cross-validation
+```{r warning=FALSE}
+# REname for Random Forest 
+colnames(df)[5] <- "CPI_score_2020" 
+
+# hyper parameter grid search (definitely need a bit modify)
+mtry <-  seq(3, 11, by = 1)
+num_trees <- c(100,150,200,250,300,350,400,450,500)
+
+
+# Manual Search
+#control <- trainControl(method="cv", number=3, search="grid")
+grid_param <- expand.grid(.mtry=mtry)
+modellist <- list()
+for (ntree in num_trees) {
+	set.seed(3888)
+	fit <- train( VRI~., 
+                      data= train %>% select(-human_development_index) , 
+                      method='rf', 
+                      tuneGrid=grid_param, 
+	                    ntree= ntree,
+                      trControl=trainControl(method='cv', 
+                        number=3) )
+	key <- toString(ntree)
+	modellist[[key]] <- fit
+
+}
+
+
+
+# compare results 
+lowest_mse <- 1
+model_mse <- modellist[[1]]
+highest_r2 <- 0
+model_r2 <- modellist[[1]]
+for (i in c(1:length(modellist))) {
+  #print(modellist[[i]]$finalModel)
+
+  mse = mean(modellist[[i]]$finalModel$mse)
+  r2 = mean(modellist[[i]]$finalModel$rsq)
+  if (lowest_mse > mse){
+    lowest_mse = mse
+    model_mse = modellist[[i]]$finalModel
+    }
+  if (highest_r2 < r2){
+     highest_r2 = r2
+     model_r2 = modellist[[i]]$finalModel
+   }
+}
+model_mse
+model_r2 
+
+
+```
+
+###### Predict on test sample
+```{r}
+predictions <- predict(model_mse,newdata = model.matrix(~.,X_test))
+# MSE
+sum((y_test-predictions)^2) / length(y_test)
+# R squared
+as.double(cor(y_test, as.data.frame(predictions)) ^ 2)
+```
+
+
+###### Backward Selection(RFE - recursive-feature-elimination)
+```{r}
+set.seed(3888)
+
+subsets <- c(3:11)
+
+ctrl <- rfeControl(functions = rfFuncs, # using random forest
+                   method = "cv",
+                   number = 3, # using 3-fold cross validation
+                   verbose = FALSE)
+
+rfProfile <- rfe((train %>% select(-VRI,-human_development_index)), as.matrix(train %>% select(VRI)),
+                 sizes = subsets,
+                 rfeControl = ctrl)
+
+rfProfile
+as.data.frame(predictors(rfProfile))
+rfProfile$fit
+trellis.par.set(caretTheme())
+plot(rfProfile, type = c("g", "o"))
+
+```
+
+Optimal Model for RF predict on test data
+```{r}
+rfProfile
+###### Predict on test sample
+predictions <- predict(rfProfile,newdata = X_test)
+# MSE
+sum((y_test-predictions)^2) / length(y_test)
+# R squared
+as.double(cor(y_test, as.data.frame(predictions)) ^ 2)
+```
+
+```{r}
+rf_df <- df %>% select(VRI,life_expectancy, extreme_poverty, cardiovasc_death_rate, gdp_per_capita)
+
+rf <- randomForest(VRI ~ ., 
+                data= rf_df, ntree=500,mtry=2,
+                keep.forest=FALSE, importance=TRUE, seed=3888)
+
+vimp <- varImp(rf,scale = TRUE)
+vimp <- vimp[order(vimp$Overall,decreasing = TRUE),,drop = FALSE]
+vimp$var <- rownames(vimp)                  
+vimp$Overall <- round(vimp$Overall,3)
+
+options(scipen=999)
+vimp %>%
+  arrange(desc(Overall)) %>%
+  ggplot(aes(reorder(var, Overall), Overall)) +
+  geom_col() +
+  coord_flip() +
+  ggtitle("Top important variables") +
+  xlab("Factors in order") +
+  ylab("Scaled importance")
+
+```
+
+##### Modelling Linear Regression (backwards selection using single p-value
+i.e. using drop1() from the full model.
+```{r}
+# Check strong correlated predictors
+cor_mat <- round(cor(df %>% select(-VRI)),2) # for linear correlation
+cor_mat[lower.tri(cor_mat)]<- NA
+cor_mat <- melt(cor_mat, na.rm = TRUE)
+as.data.frame(cor_mat) %>% filter(value > 0.8 & value != 1)
+
+# Full model (Removing non-linear trend predictors + strong correlated predictors)
+M1 = lm(VRI ~ ., data = train %>% select(-extreme_poverty,-population_density))  # ,-human_development_index,-`CPI score 2020`
+
+# Try doing backward selection
+step_back_aic = step(M1, direction = "backward", trace = FALSE)
+summary(step_back_aic)
+
+
+```
+
+
+Check assumptions
+```{r}
+library(ggfortify)
+autoplot(step_back_aic, which = 1:2) + theme_bw()
+```
+Predict
+```{r}
+predictions <- predict(step_back_aic, newdata = X_test)
+# MSE
+sum((y_test-predictions)^2) / length(y_test)
+# R squared
+as.double(cor(y_test, as.data.frame(predictions)) ^ 2)
+```
