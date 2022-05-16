@@ -43,15 +43,6 @@ covid_data$date <- as.Date(covid_data$date, format = "%d/%m/%y")
 ```{r}
 # Selecting countries with enough vaccination data
 # Set a baseline that the country we selected should has at least 180 days(i.e. 6 months) recorded for the value of vaccinations
-# Set a baseline that the country we selected should has at least 120 days(i.e. 4 months) recorded for the value of vaccinations during 2021-4-1 to 2021-10-31
-
-
-valid_countries_df <- covid_data %>%  
-    filter(!is.na(total_vaccinations) & date<=as.Date("2021-10-31") & date >= "2021-04-01") %>%
-    group_by(iso_code,location) %>% 
-    dplyr::summarise(count=n())  %>% 
-    filter(count >= 105 & !grepl("^OWID.", iso_code))  %>% # Remove continent and income groups
-    ungroup()
 
 valid_countries_df <- covid_data %>%  
      filter(!is.na(total_vaccinations) & !is.na(population)) %>%
