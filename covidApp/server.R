@@ -28,12 +28,12 @@ shinyServer(function(input, output) {
         
         ## The data you want to display in labels, per ISO code
         # average population
-        pop_summary = covid_data %>% 
-            group_by(iso_code) %>% 
-            summarise(avg.pop = mean(population, na.rm = TRUE))
+        popup_data = covid_data %>% 
+            select(iso_code, human_development_index) %>% 
+            distinct()
         
         ## Combine with geo data
-        countries_data = merge(countries, pop_summary,
+        countries_data = merge(countries, popup_data,
                                by.x = "ISO_A3", by.y = "iso_code",
                                all.x = TRUE) # reserve all geo data
         
@@ -45,22 +45,23 @@ shinyServer(function(input, output) {
                                          zoomSnap = 0.25,
                                          zoomDelta = 0.25)) %>%
             addTiles() %>% 
-            setMaxBounds(lng1 = "Infinity", lat1 = -90, 
-                         lng2 = "-Infinity", lat2 = 90) %>% 
+            setMaxBounds(lng1 = 90, lat1 = -90, 
+                         lng2 = -90, lat2 = 90) %>% 
             setView(lng = 0, lat = 45, zoom = 1) %>% 
             addPolygons(
                 layerId = countries_data$ISO_A3,
-                weight = 1,
+                weight = 0.7,
                 dashArray = "",
                 color = "#B3B6B7",
-                opacity = 1,
-                fillColor = "#F8F9F9",
-                fillOpacity = 0,
+                opacity = 0.8,
+                # fillColor = "#F8F9F9",
+                fillColor = ~pal(human_development_index),
+                fillOpacity = 0.7,
                 highlightOptions = highlightOptions(weight = 2,
                                                     color = "#FFFFFF",
                                                     dashArray = "",
-                                                    fillColor = "#FF2600",
-                                                    fillOpacity = 0.7,
+                                                    # fillColor = "#FF2600",
+                                                    # fillOpacity = 0.7,
                                                     bringToFront = TRUE,
                                                     sendToBack = TRUE),
                 ## popup labels on click alternative
@@ -73,11 +74,18 @@ shinyServer(function(input, output) {
                 label = lapply(
                     paste0(
                         "<strong>",countries_data$ADMIN,"</strong>", "<br>",
-                        "Average population: ", format(countries_data$avg.pop,
-                                                       big.mark = ",")
+                        "HDI: ", format(countries_data$human_development_index,
+                                        big.mark = ",")
                     ), HTML
                 ),
                 labelOptions = labelOptions(direction = "auto")
+            ) %>% 
+            leaflet::addLegend(
+                pal = pal,
+                values = ~human_development_index,
+                title = "Human Development Index",
+                position = "topright",
+                opacity = 0.7
             )
         
         # leaflet() %>% 

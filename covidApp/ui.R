@@ -38,21 +38,21 @@ shinyUI(
                     leafletOutput("covid_map"),
                     
                     # the floating window for user input on top of map
-                    absolutePanel(
-                        id = "map_userInputs",
-                        top = 10,
-                        right = 10,
-                        width = "auto",
-                        height = "auto",
-                        draggable = FALSE,
-                        wellPanel("Variables to map",
-                                  style = "opacity: 0.8; background-color: #ffff;",
-                                  # eg. display numerical variable on heat map
-                                  selectInput(inputId = "timePlot_click_var",
-                                              label = "Numerical Variable",
-                                              choices = num_vars)
-                        )
-                    )
+                    # absolutePanel(
+                    #     id = "map_userInputs",
+                    #     top = 10,
+                    #     right = 10,
+                    #     width = "auto",
+                    #     height = "auto",
+                    #     draggable = FALSE,
+                    #     wellPanel("Variables to map",
+                    #               style = "opacity: 0.8; background-color: #ffff;",
+                    #               # eg. display numerical variable on heat map
+                    #               selectInput(inputId = "timePlot_click_var",
+                    #                           label = "Numerical Variable",
+                    #                           choices = num_vars)
+                    #     )
+                    # )
                 ), ## END fluidRow 1
                 
                 hr(), ## horizontal line

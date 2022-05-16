@@ -15,16 +15,16 @@ library(xts)
 # isourl = "https://gist.githubusercontent.com/metal3d/5b925077e66194551df949de64e910f6/raw/c5f20a037409d96958553e2eb6b8251265c6fd63/country-coord.csv"
 # iso_data = read.csv(isourl, sep = ",", strip.white = TRUE)
 
-## FASTER, load in snapshot of covid and iso datasets
-# save(iso_data, covid_data, file = "snapshot.RData")
+## FASTER, load in snapshot of covid_data, iso_data, countries geo data, policy
+# save(iso_data, covid_data, file = "data/snapshot.RData")
 load("data/snapshot.RData")
 
 # load in geojson polygons for countries
 # countries = geojsonio::geojson_read("https://datahub.io/core/geo-countries/r/countries.geojson", what = "sp")
-countries = geojsonio::geojson_read("data/countries.geojson", what = "sp")
+# countries = geojsonio::geojson_read("data/countries.geojson", what = "sp")
 
 ## load in availability data
-policy <- read.csv("../Availability/covid-vaccination-policy.csv")
+# policy <- read.csv("../Availability/covid-vaccination-policy.csv")
 
 covid_data = covid_data %>% 
   mutate(
@@ -47,10 +47,15 @@ loc_all = covid_data %>%
   select(location) %>% 
   distinct()
 
+## heatmap bins, define boundaries of each interval (x1, x2]
+bins = seq(0,1,0.2) %>% append(Inf)
+# test on HDI, later change to VRI
+pal = colorBin("YlOrRd", domain = covid_data$human_development_index, bins = bins)
+
 ## prediction model, anything that does not rely on user input
 any_not_na = function(x) {any(!is.na(x))}
 
-# here a simiple linear model, demonstration only
+# here a simple linear model, demonstration only
 lmfit = lm(people_vaccinated ~ population + gdp_per_capita + total_vaccinations,
            data = covid_data %>% select(where(is.numeric)))
 
