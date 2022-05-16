@@ -100,6 +100,7 @@ shinyUI(
                 mainPanel(
                     # here time series plot
                     dygraphOutput("timeLag_timePlot"),
+                    br(),
                     # time lag datatable
                     DTOutput("timeLag_dtable")
                     
