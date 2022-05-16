@@ -100,8 +100,8 @@ shinyUI(
                 mainPanel(
                     # here time series plot
                     dygraphOutput("timeLag_timePlot"),
-                    # time lag value - David
-                    verbatimTextOutput("timeLag_text")
+                    # time lag datatable
+                    DTOutput("timeLag_dtable")
                     
                 )
             )

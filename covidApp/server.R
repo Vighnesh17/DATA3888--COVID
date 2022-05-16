@@ -189,8 +189,8 @@ shinyServer(function(input, output) {
             dyHighlight()
     })
     
-    ## text for vaccination time lag value
-    output$timeLag_text <- renderPrint({
+    ## vaccination time lag vector reactive
+    timeLag_vec = reactive({
         # validate that user input, to avoid error message if nothing is passed on
         validate(
             need(input$countries_lag, "Please select a country.")
@@ -259,7 +259,16 @@ shinyServer(function(input, output) {
         }
         # label the lag values with the corresponding country
         names(lag_vector) <- countries_lag
-        print(lag_vector)
+        lag_vector
+        
+    })
+    
+    ## convert time lag values, output time lag table for selected countries
+    output$timeLag_dtable <- renderDT({
+        # Apply function to each countries Time lag value 
+        lag_df = mapply(lagType, lag = timeLag_vec(), windowsize = 100)
+        # Visualise Time lags
+        t(lag_df)
     })
     
     ## text for vaccine prediction

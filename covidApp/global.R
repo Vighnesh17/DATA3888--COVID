@@ -87,4 +87,16 @@ lagValue <- function(FirstDose, SecondDose, windowsize) {
   
   # select min value index which corresponds to value of the lag
   return(which.min(dist_vector))
-}  
+}
+
+## lag value convert function
+lagType <- function(lag, windowsize) { # Function to convert indice value given by lagValue to a value for the Time Lag.
+  # Any lag values that are greater than windowsize were part of the 2nd half of the 'dist_vector' from the lagValue function, the half of the vector for the 2nd vaccine lag.
+  # Therefore need to subtract off all the days from the 1st half of the 'dist_vector' to get number of days for 2nd vaccine lag.
+  # No such issue for 1st vaccine lag as all values are within first half.
+  if (lag > windowsize){
+    return(c(LagType = "Second Dose Lag", Lag = lag - windowsize - 1))
+  } else {
+    return(c(LagType = "First Dose Lag", Lag = lag - 1))
+  }
+}
