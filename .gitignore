@@ -2,6 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
+.DS_Store
 notes2self.Rmd
 README.html
 /test-data
