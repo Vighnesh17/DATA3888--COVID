@@ -59,7 +59,7 @@ shinyUI(
                 
                 ## bottom panel
                 fluidRow(
-                    # recommendation text on the left
+                    # input panel on the left
                     column(width = 3,
                            strong("Recommendations"),
                            textOutput("recommendation"),
@@ -67,8 +67,15 @@ shinyUI(
                            style = 'border-right: 1px solid #DDDDDD'
                     ),
                     
+                    # output panel in the middle
+                    column(width = 4,
+                           p("user input table"),
+                           p("calculated output table/value + short explanation"),
+                           style = 'border-right: 1px solid #DDDDDD'
+                    ),
+                    
                     # plot on the right
-                    column(width = 9,
+                    column(width = 5,
                            dygraphOutput("timePlot_click")
                     )
                     
