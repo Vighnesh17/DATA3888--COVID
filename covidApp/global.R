@@ -52,6 +52,14 @@ bins = seq(0,1,0.2) %>% append(Inf)
 # test on HDI, later change to VRI
 pal = colorBin("YlOrRd", domain = covid_data$human_development_index, bins = bins)
 
+## time range
+first_vriDate = covid_data$date[!is.na(covid_data$new_vaccinations)] %>% 
+  min() %>% floor_date(unit = "month")
+last_vriDate = covid_data$date[!is.na(covid_data$new_vaccinations)] %>% 
+  max() %>% floor_date(unit = "month")
+vriDate_choices = seq.Date(first_vriDate, last_vriDate, "month")
+vriDate_choices_char = vriDate_choices %>% as.character.Date(format = "%b %Y")
+
 ## prediction model, anything that does not rely on user input
 any_not_na = function(x) {any(!is.na(x))}
 

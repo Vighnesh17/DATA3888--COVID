@@ -6,6 +6,7 @@
 library(shiny)
 library(tidyverse)
 library(lubridate)
+library(shinyWidgets)
 library(kableExtra)
 library(leaflet)
 library(bslib)
@@ -33,7 +34,6 @@ shinyUI(
                 fluidRow(
                     style = "position: relative;",
                     
-                    # the underlying map, takes up the whole page
                     # here map output
                     leafletOutput("covid_map"),
                     
@@ -55,22 +55,37 @@ shinyUI(
                     # )
                 ), ## END fluidRow 1
                 
+                br(),
+                
+                ## time slider
+                fluidRow(
+                    div(style = "margin:auto; width:80%;",
+                        sliderTextInput("vriDate",
+                                        label = NULL,
+                                        choices = vriDate_choices_char,
+                                        selected = vriDate_choices_char[9],
+                                        grid = TRUE,
+                                        width = "100%")
+                    )
+                ),
+                
                 hr(), ## horizontal line
                 
                 ## bottom panel
                 fluidRow(
                     # input panel on the left
                     column(width = 3,
-                           strong("Recommendations"),
-                           textOutput("recommendation"),
-                           verbatimTextOutput("clickInfo"),
-                           style = 'border-right: 1px solid #DDDDDD'
+                           wellPanel(
+                               p("dummy text")
+                           )
                     ),
                     
                     # output panel in the middle
                     column(width = 4,
                            p("user input table"),
                            p("calculated output table/value + short explanation"),
+                           verbatimTextOutput("clickInfo"),
+                           verbatimTextOutput("vriOutput"),
                            style = 'border-right: 1px solid #DDDDDD'
                     ),
                     

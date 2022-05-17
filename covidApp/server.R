@@ -96,6 +96,10 @@ shinyServer(function(input, output) {
         #                 color = ~pal(selectedVar))
     })
     
+    output$vriOutput <- renderPrint({
+        my(input$vriDate)
+    })
+    
     ## plot for vaccination prediction (time series?)
     output$time_plot <- renderDygraph({
         # validate that user input, to avoid error message if nothing is passed on
