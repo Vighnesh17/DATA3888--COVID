@@ -1,11 +1,15 @@
 library(shiny)
+library(shinyWidgets)
+library(bslib)
 library(tidyverse)
 library(lubridate)
 library(kableExtra)
 library(leaflet)
+library(maps)
 library(plotly)
 library(dygraphs)
 library(xts)
+library(DT)
 
 ## load in covid data, enable if there is need to initiate covid_data df
 # covid_data <- read.csv("https://covid.ourworldindata.org/data/owid-covid-data.csv", stringsAsFactors = FALSE, check.names =  FALSE)
@@ -22,6 +26,8 @@ load("data/snapshot.RData")
 # load in geojson polygons for countries
 # countries = geojsonio::geojson_read("https://datahub.io/core/geo-countries/r/countries.geojson", what = "sp")
 # countries = geojsonio::geojson_read("data/countries.geojson", what = "sp")
+countries = maps::map("world", fill = TRUE, plot = FALSE)
+# countries$iso_code = iso.alpha(countries$names, 3)
 
 ## load in availability data
 # policy <- read.csv("../Availability/covid-vaccination-policy.csv")
@@ -48,9 +54,9 @@ loc_all = covid_data %>%
   distinct()
 
 ## heatmap bins, define boundaries of each interval (x1, x2]
-bins = seq(0,1,0.2) %>% append(Inf)
-# test on HDI, later change to VRI
-pal = colorBin("YlOrRd", domain = covid_data$human_development_index, bins = bins)
+bins = c(0, 200, 1000, 5000, 10000, 15000, 20000, Inf)
+# palette function, test on HDI, later change to VRI
+pal = colorBin("YlOrRd", domain = covid_data$new_cases, bins = bins)
 
 ## time range
 first_vriDate = covid_data$date[!is.na(covid_data$new_vaccinations)] %>% 

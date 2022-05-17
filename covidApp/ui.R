@@ -1,21 +1,6 @@
 # Dashboard for COVID data
 
-
-# Libraries and setup -----------------------------------------------------
-
-library(shiny)
-library(tidyverse)
-library(lubridate)
-library(shinyWidgets)
-library(kableExtra)
-library(leaflet)
-library(bslib)
-library(plotly)
-library(dygraphs)
-library(xts)
-library(DT)
-
-# Define UI for application that draws a histogram
+# Define UI for application
 shinyUI(
     
     navbarPage(

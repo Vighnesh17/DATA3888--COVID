@@ -1,18 +1,3 @@
-
-
-# setup -------------------------------------------------------------------
-
-library(shiny)
-library(tidyverse)
-library(lubridate)
-library(kableExtra)
-library(leaflet)
-library(plotly)
-library(dygraphs)
-library(xts)
-library(sp)
-library(DT)
-
 # data loadin and cleaning ------------------------------------------------
 
 ## load data from global.R
@@ -26,36 +11,45 @@ shinyServer(function(input, output) {
         # pal = colorNumeric(palette = "OrRd",
         #                    domain = covid_data$selectedVar)
         
-        ## The data you want to display in labels, per ISO code
-        # average population
-        popup_data = covid_data %>% 
-            select(iso_code, human_development_index) %>% 
-            distinct()
+        vri_date = my(input$vriDate)
+        # filter based on date selected
+        countries$data = rep(NA, length(countries$names))
+        df = covid_data %>% 
+            filter(date >= vri_date & date <= rollforward(vri_date)) %>% 
+            filter(str_count(iso_code) < 4) %>% 
+            group_by(iso_code) %>% 
+            summarise(
+                value = sum(new_cases, na.rm = TRUE)
+            )
+        for (iso in df$iso_code) {
+            countries$data[countries$names == iso.expand(iso)] = df$value[df$iso_code == iso]
+        }
         
-        ## Combine with geo data
-        countries_data = merge(countries, popup_data,
-                               by.x = "ISO_A3", by.y = "iso_code",
-                               all.x = TRUE) # reserve all geo data
-        
-        
-        ## Fashion into leaflet map, with data labels on hover
-        leaflet(countries_data,
+        ## Fashion into leaflet map, static
+        leaflet(countries,
                 options = leafletOptions(worldCopyJump = TRUE,
                                          minZoom = 1.25,
                                          zoomSnap = 0.25,
-                                         zoomDelta = 0.25)) %>%
+                                         zoomDelta = 0.25)) %>% 
             addTiles() %>% 
-            setMaxBounds(lng1 = 90, lat1 = -90, 
-                         lng2 = -90, lat2 = 90) %>% 
-            setView(lng = 0, lat = 45, zoom = 1) %>% 
+            setMaxBounds(lng1 = "Infinity", lat1 = -90, 
+                         lng2 = "-Infinity", lat2 = 90) %>% 
+            setView(lng = 10, lat = 45, zoom = 1) %>% 
+            leaflet::addLegend(
+                pal = pal,
+                values = covid_data$new_cases,
+                title = "VRI",
+                position = "topright",
+                opacity = 0.7
+            ) %>%
             addPolygons(
-                layerId = countries_data$ISO_A3,
-                weight = 0.7,
+                layerId = ~names,
+                weight = 0.5,
+                smoothFactor = 0.2,
                 dashArray = "",
                 color = "#B3B6B7",
-                opacity = 0.8,
-                # fillColor = "#F8F9F9",
-                fillColor = ~pal(human_development_index),
+                opacity = 1,
+                fillColor = ~pal(data),
                 fillOpacity = 0.7,
                 highlightOptions = highlightOptions(weight = 2,
                                                     color = "#FFFFFF",
@@ -64,37 +58,74 @@ shinyServer(function(input, output) {
                                                     # fillOpacity = 0.7,
                                                     bringToFront = TRUE,
                                                     sendToBack = TRUE),
-                ## popup labels on click alternative
-                # popup = paste0(
-                #     "<strong>",countries_data@data$ADMIN,"</strong>", "<br>",
-                #     "Average population: ", format(countries_data@data$avg.pop,
-                #                                    big.mark = ",")
-                # )
-                ## hover over labels alternative
                 label = lapply(
                     paste0(
-                        "<strong>",countries_data$ADMIN,"</strong>", "<br>",
-                        "HDI: ", format(countries_data$human_development_index,
-                                        big.mark = ",")
+                        "<strong>", countries$names,"</strong>", "<br>",
+                        "Data: ", format(countries$data,
+                                         big.mark = ",")
                     ), HTML
                 ),
                 labelOptions = labelOptions(direction = "auto")
-            ) %>% 
-            leaflet::addLegend(
-                pal = pal,
-                values = ~human_development_index,
-                title = "Human Development Index",
-                position = "topright",
-                opacity = 0.7
             )
-        
-        # leaflet() %>% 
-        #     addTiles() %>%
-        #     addPolygons(stroke = FALSE,
-        #                 smoothFactor = 0.2,
-        #                 fillOpacity = 0.7,
-        #                 color = ~pal(selectedVar))
     })
+    
+    ## filtered vri data reactive to vriDate
+    # here testing
+    # countries_filtered = reactive({
+    #     vri_date = my(input$vriDate)
+    #     # filter based on date selected
+    #     countries$data = rep(NA, length(countries$names))
+    #     df = covid_data %>% 
+    #         filter(date >= vri_date & date <= rollforward(vri_date)) %>%
+    #         group_by(iso_code) %>% 
+    #         summarise(
+    #             value = sum(new_cases, na.rm = TRUE)
+    #         )
+    #     for (iso in df$iso_code) {
+    #         countries$data[countries$iso_code == iso] = df$value[df$iso_code == iso]
+    #     }
+    # })
+    
+    # ## add polygons leaflet proxy, changes with filtered data
+    # observe({
+    #     mapdata = countries_filtered()
+    #     ## Fashion into polygons
+    #     leafletProxy("covid_map", data = mapdata) %>% 
+    #         clearShapes() %>% 
+    #         addPolygons(
+    #             layerId = ~iso_code,
+    #             weight = 0.5,
+    #             smoothFactor = 0.2,
+    #             dashArray = "",
+    #             color = "#B3B6B7",
+    #             opacity = 0.8,
+    #             # fillColor = "#F8F9F9",
+    #             fillColor = ~pal(data),
+    #             fillOpacity = 0.7,
+    #             highlightOptions = highlightOptions(weight = 2,
+    #                                                 color = "#FFFFFF",
+    #                                                 dashArray = "",
+    #                                                 # fillColor = "#FF2600",
+    #                                                 # fillOpacity = 0.7,
+    #                                                 bringToFront = TRUE,
+    #                                                 sendToBack = TRUE),
+    #             ## popup labels on click alternative
+    #             # popup = paste0(
+    #             #     "<strong>",countries_data@data$ADMIN,"</strong>", "<br>",
+    #             #     "Average population: ", format(countries_data@data$avg.pop,
+    #             #                                    big.mark = ",")
+    #             # )
+    #             ## hover over labels alternative
+    #             label = lapply(
+    #                 paste0(
+    #                     "<strong>", mapdata$names,"</strong>", "<br>",
+    #                     "Data: ", format(mapdata$data,
+    #                                      big.mark = ",")
+    #                 ), HTML
+    #             ),
+    #             labelOptions = labelOptions(direction = "auto")
+    #         )
+    # })
     
     ## user input values for VRI prediction, in a reactive dataframe
     vriInput_df = reactive({
