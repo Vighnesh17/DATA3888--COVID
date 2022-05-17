@@ -96,6 +96,24 @@ shinyServer(function(input, output) {
         #                 color = ~pal(selectedVar))
     })
     
+    ## user input values for VRI prediction, in a reactive dataframe
+    vriInput_df = reactive({
+        tibble(
+            population = input$vriInput_pop,
+            gdp_per_capita = input$vriInput_gdp
+        )
+    })
+    
+    ## a table of user input values, for user to double check their inputs
+    output$vriInput_table <- renderTable(striped = TRUE, {
+        input_table = rename(
+            vriInput_df(),
+            "Population" = "population",
+            "GDP per capita" = "gdp_per_capita"
+        )
+        input_table
+    })
+    
     output$vriOutput <- renderPrint({
         my(input$vriDate)
     })

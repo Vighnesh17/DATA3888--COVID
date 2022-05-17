@@ -76,22 +76,29 @@ shinyUI(
                     # input panel on the left
                     column(width = 3,
                            wellPanel(
-                               p("dummy text")
+                               strong("Predictors"),
+                               hr(),
+                               numericInput(inputId = "vriInput_pop",
+                                            label = "Country population",
+                                            value = 1e6),
+                               numericInput(inputId = "vriInput_gdp",
+                                            label = "GDP per capita",
+                                            value = 2000),
                            )
                     ),
                     
                     # output panel in the middle
                     column(width = 4,
-                           p("user input table"),
+                           p("Your inputs:"),
+                           tableOutput("vriInput_table"),
                            p("calculated output table/value + short explanation"),
-                           verbatimTextOutput("clickInfo"),
-                           verbatimTextOutput("vriOutput"),
                            style = 'border-right: 1px solid #DDDDDD'
                     ),
                     
                     # plot on the right
                     column(width = 5,
-                           dygraphOutput("timePlot_click")
+                           verbatimTextOutput("clickInfo"),
+                           verbatimTextOutput("vriOutput"),
                     )
                     
                 )## END fluidRow 2
