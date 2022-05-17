@@ -1,0 +1,210 @@
+---
+title: "Untitled"
+author: "David Vucic, 500505692"
+date: "17/05/2022"
+output: html_document
+---
+
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(tibble)
+library(ggplot2)
+library(ggthemes)
+library(maps)
+library(plotly) # Interactive data visualizations
+library(viridis) # Color gradients
+library(lubridate)
+library(randomForest) 
+library(ranger)       # a faster implementation of randomForest
+library(caret)        # performe many machine learning models
+library(broom)  # try: `install.packages("backports")` if diretly installing broom gives an error
+library(reshape2) # to use melt()
+#library(deSolve)
+```
+
+
+```{r}
+covid <- read.csv("/Users/davidvucic/Desktop/owid-covid-data.csv")
+covid$date <- as.Date(covid$date)
+#head(covid_data)
+```
+
+```{r}
+data <- covid[covid$location == "United States", ]
+data$people_vaccinated[is.na(data$people_vaccinated)] = 0
+for (i in 1:nrow(data)){
+    if (i == 1){
+      } else{
+      if (data$people_vaccinated[i] == 0){
+        data$people_vaccinated[i] = data$people_vaccinated[i-1]
+      }
+    }
+}
+
+# %>%
+#   filter(!is.na(people_vaccinated) & people_vaccinated != 0) %>%
+#   filter(!is.na(total_vaccinations) & total_vaccinations != 0) %>%
+data <- data %>%
+  select(location, date, people_vaccinated, population)
+data$index <- c(1:length(data$people_vaccinated))
+```
+
+```{r}
+SS <- getInitial(data$people_vaccinated ~ SSlogis(data$index, alpha, xmid, scale), data = data)
+K_start <- SS["alpha"]
+R_start <- 1/SS["scale"]
+N0_start <- SS["alpha"]/(exp(SS["xmid"]/SS["scale"])+1)
+```
+
+```{r}
+log_formula <- formula(data$people_vaccinated ~ K*N0*exp(R*data$index)/(K + N0*(exp(R*data$index) - 1)))
+formu<-nls(log_formula, data = data, start = list(K = K_start, R = R_start, N0 = N0_start))
+```
+
+r is the intrinsic growth rate
+```{r}
+summary(formu)
+r = summary(formu)$coefficients[[2]]
+```
+
+
+
+```{r}
+ggplot(data,aes(index,predict(formu)))+geom_line()+
+  geom_point(aes(y=people_vaccinated))+
+  theme_bw()+
+  theme(panel.grid.minor = element_blank(),panel.grid.major = element_blank())+xlab("Fermentation days")+ylab("Dry weight of biomass (mg)")
+```
+
+
+```{r}
+RSQUARE = function(y_actual,y_predict){
+  cor(y_actual,y_predict)^2
+}
+RSQUARE(data$people_vaccinated, predict(formu))
+```
+
+
+
+vri
+```{r}
+vri <- r * (data$people_vaccinated[which(data$date == "2021-10-31")]) / data$population[1]
+```
+
+
+```{r}
+estimate_r <- function(data){
+  data$index <- c(1:length(data$people_vaccinated))
+  SS <- getInitial(data$people_vaccinated ~ SSlogis(data$index, alpha, xmid, scale), data = data)
+  K_start <- SS["alpha"]
+  R_start <- 1/SS["scale"]
+  N0_start <- SS["alpha"]/(exp(SS["xmid"]/SS["scale"])+1)
+  
+  log_formula <- formula(data$people_vaccinated ~ K*N0*exp(R*data$index)/(K + N0*(exp(R*data$index) - 1)))
+  
+  
+  formu<-nls(log_formula, data = data, start = list(K = K_start, R = R_start, N0 = N0_start))
+  
+  return(formu)
+}
+```
+
+
+```{r}
+estimate_vri <- function(data, r){
+  vri <- r * (data$people_vaccinated[which(data$date == "2021-10-31")]) / data$population[1]
+  
+  return(vri)
+}
+```
+
+
+```{r}
+countries_data <- covid %>%
+  filter(population >= 1500000) %>%
+  filter(gdp_per_capita > 0) %>%
+  select(location, date, people_vaccinated, population, aged_65_older, gdp_per_capita, cardiovasc_death_rate, handwashing_facilities, hospital_beds_per_thousand, human_development_index)
+countries <- unique(countries_data$location)
+deleted <- c("Afghanistan", "Antigua and Barbuda", "Bangladesh","Benin", "Bhutan", "Bonaire Sint Eustatius and Saba", "Botswana", "Burundi","Burkina Faso", "Cameroon", "Cote d'Ivoire", "Democratic Republic of Congo", "Ethiopia","Eritrea", "Gabon", "Ghana", "Guernsey", "Guinea", "Kenya", "Kuwait", "Liberia", "Laos", "Namibia", "Nepal","Nicaragua", "Niger", "Nigeria", "Palestine", "Philippines", "Pitcairn", "Rwanda", "Saint Helena", "Senegal", "Sierra Leone", "Somalia", "South Sudan", "Sudan", "Tokelau", "Turkmenistan","Tanzania", "Uganda","Yemen", "World", "Zambia")
+countries = countries[! countries %in% deleted]
+#countries
+vri_data <- NULL
+avg <- 0
+count <- 0
+for (c in countries) {
+  country <- covid[covid$location == c, ]
+  country$people_vaccinated[is.na(country$people_vaccinated)] = 0
+  for (i in 1:nrow(country)){
+    if (i == 1){
+      } else{
+      if (country$people_vaccinated[i] == 0){
+        country$people_vaccinated[i] = country$people_vaccinated[i-1]
+      }
+    }
+  }
+  
+  country <- country %>%
+    select(location, date, people_vaccinated, population)
+  formu <- estimate_r(country)
+  
+  avg <- avg +  RSQUARE(country$people_vaccinated, predict(formu))
+  count <- count + 1
+  
+  r <- summary(formu)$coefficients[[2]]
+  
+  vri <- estimate_vri(country, r)
+  
+  
+  temp <- data.frame(location = c, vri = vri, 
+                     aged_65_older = covid[covid$location == c, ]$aged_65_older[1], 
+                     gdp_per_capita = covid[covid$location == c, ]$gdp_per_capita[1], 
+                     cardiovasc_death_rate = covid[covid$location == c, ]$cardiovasc_death_rate[1], 
+                     handwashing_facilities = covid[covid$location == c, ]$handwashing_facilities[1], 
+                     hospital_beds_per_thousand = covid[covid$location == c, ]$hospital_beds_per_thousand[1], 
+                     human_development_index = covid[covid$location == c, ]$human_development_index[1])
+  vri_data <- rbind(vri_data, temp)
+}
+avg / count
+```
+
+```{r}
+availability <- read.csv("/Users/davidvucic/Desktop/vaccination_policy.csv")
+availability$policy <- ordered(availability$policy, levels = c(0,1,2,3,4,5))
+
+```
+
+
+
+
+```{r}
+# Create a Random Forest model with default parameters
+vri_data <- merge(vri_data, availability, by.x = "location", by.y = "location")
+
+vri_data <- vri_data %>%
+  drop_na()
+min_max_norm <- function(x) {
+    (x - min(x)) / (max(x) - min(x))
+}
+temp_data <- data.frame(lapply(vri_data[3:8], min_max_norm), availability = vri_data$policy, vri = vri_data$vri)
+rf <- train(vri ~ ., data= temp_data, method = "rf", ntree=500, importance=TRUE, seed=3888)
+```
+
+
+
+
+```{r}
+temp <- temp_data %>%
+  select(-vri)
+result <- predict(rf, newdata=temp)
+result_avg <- mean(result)
+1 - (sum((vri_data$vri - result)^2))/(sum((vri_data$vri - result_avg)^2))
+```
+
+
+```{r}
+ggplot(data = vri_data, aes(x=vri, y=gdp_per_capita)) + geom_point() + ggtitle("GDP per capita vs Vaccine Roll-out Index(vri)")
+ggplot(data = vri_data, aes(x=vri, y=human_development_index)) + geom_point() + ggtitle("human_development_index vs Vaccine Roll-out Index(vri)")
+```
+
