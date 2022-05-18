@@ -170,8 +170,24 @@ avg / count
 ```
 
 ```{r}
-availability <- read.csv("/Users/davidvucic/Desktop/vaccination_policy.csv")
-availability$policy <- ordered(availability$policy, levels = c(0,1,2,3,4,5))
+full_availability <- read.csv("/Users/davidvucic/Desktop/covid-vaccination-policy.csv")
+full_availability$Day <- as.Date(full_availability$Day)
+start_date_a = "2020-12-13"
+end_date_a = "2021-10-31"
+full_availability <- full_availability %>%
+  filter(Day >= start_date_a)
+availability_data <- NULL
+countrys = unique(full_availability$Entity)
+for (c in countrys){
+  country_av <- full_availability %>%
+    filter(full_availability$Entity == c)
+  #temp <- data.frame(location = c, availability_avg = sum(country_av$vaccination_policy >= 4))
+  temp <- data.frame(location = c, availability_avg = mean(country_av$vaccination_policy))
+  availability_data <- rbind(availability_data, temp)
+  
+}
+availability_data
+
 
 ```
 
@@ -180,14 +196,14 @@ availability$policy <- ordered(availability$policy, levels = c(0,1,2,3,4,5))
 
 ```{r}
 # Create a Random Forest model with default parameters
-vri_data <- merge(vri_data, availability, by.x = "location", by.y = "location")
+vri_data <- merge(vri_data, availability_data, by.x = "location", by.y = "location")
 
 vri_data <- vri_data %>%
   drop_na()
 min_max_norm <- function(x) {
     (x - min(x)) / (max(x) - min(x))
 }
-temp_data <- data.frame(lapply(vri_data[3:8], min_max_norm), availability = vri_data$policy, vri = vri_data$vri)
+temp_data <- data.frame(lapply(vri_data[3:9], min_max_norm), vri = vri_data$vri)
 rf <- train(vri ~ ., data= temp_data, method = "rf", ntree=500, importance=TRUE, seed=3888)
 ```
 
