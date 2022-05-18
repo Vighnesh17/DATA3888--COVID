@@ -18,7 +18,7 @@ library(plotly)
 ```{r}
 # read in covid df and convert dates column to date type
 
-covid = read.csv("/Users/davidvucic/Desktop/owid-covid-data-160222.csv")
+covid = read.csv("/Users/davidvucic/Desktop/owid-covid-data.csv")
 covid$data = as.Date(covid$date)
 ```
 
@@ -26,6 +26,20 @@ covid$data = as.Date(covid$date)
 ```{r}
 lag_covid = covid
 
+```
+
+```{r}
+lag_covid = lag_covid %>%
+  filter(population > 1500000) %>%
+  filter(gdp_per_capita > 0)
+countries <- unique(lag_covid$location)
+deleted <- c("Afghanistan", "Antigua and Barbuda", "Bangladesh","Benin", "Bhutan", "Bonaire Sint Eustatius and Saba", "Botswana", "Burundi","Burkina Faso", "Cameroon", "Cote d'Ivoire", "Democratic Republic of Congo", "Ethiopia","Eritrea", "Gabon", "Ghana", "Guernsey", "Guinea", "Kenya", "Kuwait", "Liberia", "Laos", "Namibia", "Nepal","Nicaragua", "Niger", "Nigeria", "Palestine", "Philippines", "Pitcairn", "Rwanda", "Saint Helena", "Senegal", "Sierra Leone", "Somalia", "South Sudan", "Sudan", "Tokelau", "Turkmenistan","Tanzania", "Uganda","Yemen", "World", "Zambia")
+countries = countries[! countries %in% deleted]
+countries
+```
+
+
+```{r}
 # select relevant columns and subset of data within a range of dates
 
 lag_covid = select(lag_covid, "date", "location", "people_vaccinated_per_hundred", "people_fully_vaccinated_per_hundred")
@@ -34,14 +48,10 @@ end_date = "2021-08-01"
 lag_covid = lag_covid %>% filter(date >= start_date & date < end_date)
 ```
 
+
+
 ```{r}
-# select only certain countries
-countries_lag = c("United States", "India", "Brazil", "France", "United Kingdom", "Russia",
-              "Turkey", "Italy", "Germany", "Spain", "Argentina",
-                "Colombia", "Poland", 'Mexico', "Netherlands",
-              "Indonesia", "Ukraine", "South Africa", "Philippines", "Peru", "Belgium",
-                "Czechia", "Japan", "Israel")
-lag_covid = filter(lag_covid, lag_covid$location %in% countries_lag)
+
 
 # make all NA values equal to 0
 
@@ -71,7 +81,7 @@ lagValue <- function(FirstDose, SecondDose, windowsize)
     # select different subsets of matrices, calculate the distances between the 2 matrices and store the distance. This while loop will contain information for 1st vaccine lag
     FirstDose_subset <- FirstDose[i:nrow(FirstDose),1]
     SecondDose_subset <- SecondDose[1:(1 - i + nrow(SecondDose)),1]
-    dist_FirstDose <- proxy::dist(t(FirstDose_subset), t(SecondDose_subset), method = "cosine")
+    dist_FirstDose <- proxy::dist(t(FirstDose_subset), t(SecondDose_subset), method = "Minkowski", p = 2)
     dist_vector = c(dist_vector, dist_FirstDose)
     i = i + 1
   }
@@ -82,7 +92,7 @@ lagValue <- function(FirstDose, SecondDose, windowsize)
     # select different subsets of matrices, calculate the distances between the 2 matrices and store the distance. This while loop will contain information for 2nd vaccine lag
     FirstDose_subset1 <- FirstDose[1:(1 - j + nrow(FirstDose)),1]
     SecondDose_subset1 <- SecondDose[j:nrow(SecondDose),1]
-    dist_SecondDose <- proxy::dist(t(FirstDose_subset1), t(SecondDose_subset1), method = "cosine")
+    dist_SecondDose <- proxy::dist(t(FirstDose_subset1), t(SecondDose_subset1), method = "Minkowski", p = 2)
     dist_vector = c(dist_vector, dist_SecondDose)
     j = j + 1
   }
@@ -92,13 +102,17 @@ lagValue <- function(FirstDose, SecondDose, windowsize)
 }  
 ```
 
+
+
+
 ```{r}
 lag_vector <- c()
 z = 1
 # loop through each country
-while (z <= length(countries_lag)){
+# while (z <= length(countries_lag)){
+while (z <= length(countries)){
   # only select records for certain country and only select 1st and 2nd vaccine columns
-  lagCovid_filtered = filter(lag_covid, location == countries_lag[z])
+  lagCovid_filtered = filter(lag_covid, location == countries[z])
   combined_matrix <- cbind(lagCovid_filtered[,3], lagCovid_filtered[,4])
   
   # In the dataset, there are missing values. Will replace these missing values (0) with the value from the date before. Do it for both 1st and 2nd vaccine columns
@@ -131,9 +145,9 @@ while (z <= length(countries_lag)){
 
   # Graph the 1st and 2nd vaccine percentages as a figure of interest. Need to convert back to dataframe.
   # X axis is in days
-  combined_matrix_smooth_df = as.data.frame(combined_matrix_smooth)
-  matplot(cbind(combined_matrix_smooth_df[,1], combined_matrix_smooth_df[,2]), type ="l", lty = 1, ylab = "Percentage of Population", xlab = countries_lag[z])
-  legend("topleft", c("At Least 1 Vaccine", "2 Vaccines"), lty = 1, col=1:2)
+  # combined_matrix_smooth_df = as.data.frame(combined_matrix_smooth)
+  # matplot(cbind(combined_matrix_smooth_df[,1], combined_matrix_smooth_df[,2]), type ="l", lty = 1, ylab = "Percentage of Population", xlab = countries[z])
+  # legend("topleft", c("At Least 1 Vaccine", "2 Vaccines"), lty = 1, col=1:2)
   
   # Input the individual matrices into the lagValue function to find the lag between the 1st and 2nd dose for a particular country
   lag <- lagValue(FirstDose_matrix, SecondDose_matrix, windowsize=100)
@@ -142,7 +156,7 @@ while (z <= length(countries_lag)){
   z = z + 1
 }
 # label the lag values with the corresponding country
-names(lag_vector) <- countries_lag
+names(lag_vector) <- countries
 
 ```
 
@@ -172,11 +186,27 @@ datatable(t(lag_df))
 lag_table = as.data.frame(t(lag_df))
 lag_table <- cbind(Country = rownames(lag_table), lag_table)
 lag_table$Lag = as.numeric(lag_table$Lag) 
+lag_table_1 = lag_table[1:(nrow(lag_table)/3),]
 
 # plot the lag 
-fig = plot_ly(data = lag_table, x = ~Country, y = ~Lag, type = 'bar')
-fig = fig %>% layout(title = "Lag Between 1st and 2nd COVID-19 Vaccine")
-fig
+fig_1 = plot_ly(data = lag_table_1, x = ~Country, y = ~Lag, type = 'bar')
+fig_1 = fig_1 %>% layout(title = "Lag Between 1st and 2nd COVID-19 Vaccine")
+fig_1
+```
+
+
+```{r}
+lag_table_2 = lag_table[(nrow(lag_table)/3 + 1):(nrow(lag_table)*(2/3)),]
+fig_2 = plot_ly(data = lag_table_2, x = ~Country, y = ~Lag, type = 'bar')
+fig_2 = fig_2 %>% layout(title = "Lag Between 1st and 2nd COVID-19 Vaccine")
+fig_2
+```
+
+```{r}
+lag_table_3 = lag_table[(nrow(lag_table)*(2/3)+1):nrow(lag_table),]
+fig_3 = plot_ly(data = lag_table_3, x = ~Country, y = ~Lag, type = 'bar')
+fig_3 = fig_3 %>% layout(title = "Lag Between 1st and 2nd COVID-19 Vaccine")
+fig_3
 ```
 
 
