@@ -37,7 +37,7 @@ countries = c("United States", "India", "Brazil", "France", "United Kingdom", "R
               "Turkey", "Italy", "Germany", "Spain", "Argentina",
                 "Iran", "Colombia", "Poland", 'Mexico', "Netherlands", 
               "Indonesia", "Ukraine", "South Africa", "Philippines", "Peru", "Belgium",
-                "Czechia", "Japan", "Israel")
+                "Czechia", "Japan", "Iran")
 
 
 covid <- covid %>% filter(location %in% countries)
@@ -106,10 +106,10 @@ philippines_policy <- philippines_data %>%
 
 
 
-israel_data <- data[data$location == "Israel", ]
-israel_data$date <- as.Date(israel_data$date)
+iran_data <- data[data$location == "Iran", ]
+iran_data$date <- as.Date(iran_data$date)
   
-israel_policy <- israel_data %>%
+iran_policy <- iran_data %>%
   group_by(vaccination_policy) %>%
   arrange(date) %>% 
   slice(1L) %>%
@@ -239,22 +239,24 @@ philippines_death <- ggplot() +
 
 
 
-israel_scale <- (max(israel_data$new_deaths[!is.na(israel_data$new_deaths)]) / israel_data$population[1]) / max(israel_data$new_vaccinations_smoothed[!is.na(israel_data$new_vaccinations_smoothed)])
+iran_scale <- (max(iran_data$new_deaths[!is.na(iran_data$new_deaths)]) / iran_data$population[1]) / max(iran_data$new_vaccinations_smoothed[!is.na(iran_data$new_vaccinations_smoothed)])
 
-israel_death <- ggplot() + 
-  geom_point(data = israel_data, aes(x = as.Date(date), y = new_vaccinations_smoothed, group = as.factor(vaccination_policy), color = as.factor(vaccination_policy)), size = 0.6) +
-  geom_line(data = israel_data, aes(x = as.Date(date), y = new_deaths / (population * israel_scale)), color = "darkblue", size = 0.5, alpha = 0.3) + 
-  scale_y_continuous(name = "New vaccination", sec.axis = sec_axis(~.*israel_scale , name = "Death ratio")
+iran_death <- ggplot() + 
+  geom_point(data = iran_data, aes(x = as.Date(date), y = new_vaccinations_smoothed, group = as.factor(vaccination_policy), color = as.factor(vaccination_policy)), size = 0.6) +
+  geom_line(data = iran_data, aes(x = as.Date(date), y = new_deaths / (population * iran_scale)), color = "darkblue", size = 0.5, alpha = 0.3) + 
+  scale_y_continuous(name = "New vaccination", sec.axis = sec_axis(~.*iran_scale , name = "Death ratio")
   ) + 
-  ggtitle("Israel") + 
+  ggtitle("Iran") + 
   xlab("Date") + 
   labs(color = "Avalability stage") + theme(legend.position = "none")
 
 ```
 
+
+
 ```{r, warning=FALSE, results='hide', dpi = 200, fig.align='center'}
 ggarrange(
-  us_death, india_death, brazil_death, Netherlands_death, philippines_death, israel_death, nrow = 3, ncol=2,
+  us_death, india_death, brazil_death, Netherlands_death, philippines_death, iran_death, nrow = 3, ncol=2,
   common.legend = TRUE, legend = "bottom"
   )
 ```

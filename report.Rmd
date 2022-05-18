@@ -5,7 +5,8 @@ date: "`r format(Sys.time(), '%d %b %Y')`"
 output: 
   bookdown::html_document2:
     theme: 
-      bootswatch: lumen
+      # bootswatch: lumen
+      sandstone
     code_folding: hide
     toc: true
     toc_float: true
@@ -27,7 +28,7 @@ knitr::opts_chunk$set(
 
 ```{r libraries}
 library(tidyverse)
-library(printr)
+library(kableExtra)
 ```
 
 # Guide for RMarkdown report (remove for final report)
@@ -44,20 +45,59 @@ Examples of how to reference bib entries in-text (check the rmd file):
 - Garth reference: [@RN83]
 - `tidyverse` reference: [@tidyverse]
 
-## Figures cross-referencing
+## Sections cross-referencing
 
-Here is an example plot with caption and how to reference it in-text:
+You can cross-reference to sections, so that the link point to the relevant heading (check the rmd file):
 
-Use code chunk names to reference the figure output of that code chunk: Figure \@ref(fig:example-plot). *Note this will only show the number (default format: section-num.figure-num), you have to put "Figure" before the \@ref(fig:..) as well.*
+- use `{#section-id}` after heading to label the section followed, where `section-id` is user-defined and acts as the identifier of the section
+- use `\@ref(section-id)` or `\@ref(section-heading)` if there is no identifier, to refer to the section you want to link to
+
+Examples (check rmd file):
+
+- this text refers to the appendix A with the heading "Code" (Appendix \@ref(code))
+- this text refers to the section labelled with *id* `vri` (Section \@ref(vri))
+- this text refers to the section "Data Background" (Section \@ref(data-background))
+
+*Note this will only show the number of the section, you have to put "Section"/"Appendix" before the `\@ref(...)` as well.*
+
+## Figures/Tables cross-referencing
+
+- use `\@ref(fig:chunk-name)` to refer to figure output by the chunk named as `chunk-name`
+- use `\@ref(tab:chunk-name)` to refer to the table output by the chunk named as `chunk-name`
+
+Here is an example plot with caption and its in-text reference (check rmd file):
+
+- Figure \@ref(fig:example-plot). 
+
+*Note this will only show the number (default format: section-num.figure-num), you have to put "Figure" before the `\@ref(fig:..)` as well.*
 
 ```{r example-plot, fig.cap="Example plot"}
 # example plot
 mtcars %>% 
   rownames_to_column("car") %>% 
-  data_frame() %>% 
+  as_tibble() %>% 
   ggplot() +
   aes(x = factor(cyl), y = disp, colour = factor(cyl)) +
   geom_boxplot()
+```
+
+Here is an example table with caption and its in-text reference:
+
+- Table \@ref(tab:example-table)
+
+*Note this will only show the number (default format: section-num.table-num), you have to put "Table" before the `\@ref(tab:..)` as well.*
+
+```{r example-table}
+# example table
+mtcars %>% 
+  kbl(caption = "Example table",
+      format = "html",
+      booktabs = TRUE,
+      row.names = TRUE,
+      escape = TRUE) %>%
+  kable_styling(bootstrap_options = c("condensed", "striped", "hover"),
+                position = "center") %>%
+  scroll_box(height = "300px")
 ```
 
 
@@ -71,19 +111,19 @@ mtcars %>%
 # Methods
 
 
-## Time lag between 1st and 2nd dose
+## Time lag between 1st and 2nd dose {#time-lag}
 
 
-## Vaccine rollout index (VRI) and variable importance
+## Vaccine rollout index (VRI) and variable importance {#vri}
 
 
-## Vaccine uptake and availability
+## Vaccine uptake and availability {#availability}
 
 
 # Results
 
 
-# Discussion & Conclusion
+# Discussion & Conclusion {#conclusion}
 
 
 # Student Contributions

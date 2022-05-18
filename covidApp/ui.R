@@ -76,7 +76,7 @@ shinyUI(
                 
             )## END fluidPage
             
-        ), ## END tabPanel
+        ), ## END tabPanel - world map
         
 
         # Vaccine Time Lag tab page -----------------------------------------------
@@ -90,7 +90,7 @@ shinyUI(
                     strong("Select a Location"),
                     hr(),
                     selectizeInput(inputId = "countries_lag",
-                                   label = "Location(s)",
+                                   label = "Location(s): max 3",
                                    choices = loc_all,
                                    multiple = TRUE,
                                    options = list(maxItems = 3))
@@ -100,12 +100,12 @@ shinyUI(
                 mainPanel(
                     # here time series plot
                     dygraphOutput("timeLag_timePlot"),
-                    # time lag value - David
-                    verbatimTextOutput("timeLag_text")
+                    # time lag datatable
+                    DTOutput("timeLag_dtable")
                     
                 )
             )
-        ), ## END tabPanel
+        ), ## END tabPanel - time lag
         
 
         # Vaccine Visualisation and prediction ------------------------------------
@@ -144,8 +144,21 @@ shinyUI(
                     verbatimTextOutput("prediction")
                 )
             )
-        ) ## END tabPanel
+        ), ## END tabPanel
         
+
+        # Vaccine rollout and Availability ----------------------------------------
+
+        tabPanel(
+            "Vaccine Rollout Stages",
+            fluidPage(
+                h1("Heading"),
+                fluidRow(
+                    verbatimTextOutput("rollout_barPlot")
+                )
+            )
+        ) ## END tabPanel - rollout
+         
     )
     
     

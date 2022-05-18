@@ -23,6 +23,9 @@ load("data/snapshot.RData")
 # countries = geojsonio::geojson_read("https://datahub.io/core/geo-countries/r/countries.geojson", what = "sp")
 countries = geojsonio::geojson_read("data/countries.geojson", what = "sp")
 
+## load in availability data
+policy <- read.csv("../Availability/covid-vaccination-policy.csv")
+
 covid_data = covid_data %>% 
   mutate(
     date = ymd(date)
@@ -69,7 +72,7 @@ lagValue <- function(FirstDose, SecondDose, windowsize) {
     # select different subsets of matrices, calculate the distances between the 2 matrices and store the distance. This while loop will contain information for 1st vaccine lag
     FirstDose_subset <- FirstDose[i:nrow(FirstDose),1]
     SecondDose_subset <- SecondDose[1:(1 - i + nrow(SecondDose)),1]
-    dist_FirstDose <- proxy::dist(t(FirstDose_subset), t(SecondDose_subset), method = "cosine")
+    dist_FirstDose <- proxy::dist(t(FirstDose_subset), t(SecondDose_subset), method = "Minkowski", p = 2)
     dist_vector = c(dist_vector, dist_FirstDose)
     i = i + 1
   }
@@ -80,11 +83,23 @@ lagValue <- function(FirstDose, SecondDose, windowsize) {
     # select different subsets of matrices, calculate the distances between the 2 matrices and store the distance. This while loop will contain information for 2nd vaccine lag
     FirstDose_subset1 <- FirstDose[1:(1 - j + nrow(FirstDose)),1]
     SecondDose_subset1 <- SecondDose[j:nrow(SecondDose),1]
-    dist_SecondDose <- proxy::dist(t(FirstDose_subset1), t(SecondDose_subset1), method = "cosine")
+    dist_SecondDose <- proxy::dist(t(FirstDose_subset1), t(SecondDose_subset1), method = "Minkowski", p = 2)
     dist_vector = c(dist_vector, dist_SecondDose)
     j = j + 1
   }
   
   # select min value index which corresponds to value of the lag
   return(which.min(dist_vector))
-}  
+}
+
+## lag value convert function
+lagType <- function(lag, windowsize) { # Function to convert indice value given by lagValue to a value for the Time Lag.
+  # Any lag values that are greater than windowsize were part of the 2nd half of the 'dist_vector' from the lagValue function, the half of the vector for the 2nd vaccine lag.
+  # Therefore need to subtract off all the days from the 1st half of the 'dist_vector' to get number of days for 2nd vaccine lag.
+  # No such issue for 1st vaccine lag as all values are within first half.
+  if (lag > windowsize){
+    return(c(LagType = "Second Dose Lag", Lag = lag - windowsize - 1))
+  } else {
+    return(c(LagType = "First Dose Lag", Lag = lag - 1))
+  }
+}
