@@ -5,7 +5,7 @@ author: "Aurora Wang, David Vucic, Diana Cao, Harun Hodzic, Sylvia Liu, Tina Tia
 institute: "University of Sydney"
 date: "`r Sys.Date()`"
 output:
-  xaringan::moon_reader:
+  xaringan::chocolate-fonts:
     lib_dir: libs
     nature:
       highlightStyle: github
@@ -24,16 +24,39 @@ knitr::opts_chunk$set(
 )
 ```
 
-# Introduction
+# Introduction (30s)
+
+
+- Background
+  - Dataset
+- Motivation
+- Main Questions
+  - List the 2 sub Q
 
 ---
 
-# Dataset
+# Vaccination Time Lag: First dose vs Fully vaccination (40s)
+
+- highlight & Innovation
+- Evaluation strategies
+  - include results
+
 
 ---
 
-# Vaccination Time Lag: First dose vs Fully vaccination
+# Vaccination Roll-Out Index (100s)
+
+- highlight & Innovation
+- Evaluation strategies
+  - include results
 
 ---
 
-# Vaccination Availability
+# Consultation (10s)
+
+- Main results
+- most of the finding shown in shiny app
+
+---
+
+# Demo (60s)

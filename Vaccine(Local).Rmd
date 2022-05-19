@@ -178,11 +178,11 @@ vri_data <- read_csv("vri_data.csv")
 Merge joint covid data with vri.
 
 ```{r}
-corruption <- read_xlsx("CPI2020_GlobalTablesTS_210125.xlsx", sheet=1,skip=2)
+corruption <- read_xlsx("data/CPI2020_GlobalTablesTS_210125.xlsx", sheet=1,skip=2)
 corruption <- corruption %>% select (c("ISO3", "CPI score 2020")) 
 #corruption
 
-happiness <- read_csv("happiness-cantril-ladder.csv")
+happiness <- read_csv("data/happiness-cantril-ladder.csv")
 happiness <- happiness %>% group_by(Code) %>%
   arrange(Year) %>%
   filter(!is.na(`Life satisfaction in Cantril Ladder (World Happiness Report 2021)`)) %>%
@@ -194,7 +194,7 @@ joint_data <- merge(vri_data,corruption,  by.x=c("iso_code"), by.y=c("ISO3"))
 joint_data <- merge(joint_data,happiness, by.x=c("iso_code"), by.y=c("Code"))
 
 # GHE-INDEX
-ghs <- read_csv("2021-GHS-Index-April-2022.csv")
+ghs <- read_csv("data/2021-GHS-Index-April-2022.csv")
 ghs <- ghs %>% filter(Year == 2021) %>% select(Country,`OVERALL SCORE`)
 
 joint_data <- merge(joint_data, ghs,  by.x=c("location"), by.y=c("Country"))
@@ -344,7 +344,7 @@ scaled_data
 
 ##### Split data into training and testing
 ```{r}
-
+set.seed(1)
 ind <- createDataPartition(scaled_data$vri, p = .8,list=FALSE) 
 train <- scaled_data[ind,]
 X_test <- scaled_data[-ind,] %>% select(-vri)
