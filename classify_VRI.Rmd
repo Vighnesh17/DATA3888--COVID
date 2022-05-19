@@ -199,6 +199,7 @@ boxplot(scaled_data$vri)
 threshold <- quantile(scaled_data$vri)[4]
 threshold
 ```
+
 ```{r}
 scaled_data$label <- ifelse(scaled_data$vri >= threshold, 1, 0)
 ```
@@ -226,9 +227,9 @@ X = scaled_data %>% select(-vri, -label)
 y = scaled_data$label
 
 cvK <- 5  # number of CV folds
-cv_acc5_50times = cv_acc5 = c()
+cv_acc5_50times_svm = cv_acc5_svm = cv_acc5_50times_rf = cv_acc5_rf = c()
 
-n_sim = 25 ## number of repeats
+n_sim = 50 ## number of repeats
 for (i in 1:n_sim) {
 
   cvSets <- cvTools::cvFolds(nrow(X), cvK)  # permute all the data, into 5 folds
@@ -244,14 +245,21 @@ for (i in 1:n_sim) {
     ## SVM
     svm_res <- e1071::svm(x = X_train, y = as.factor(y_train))
     fit <- predict(svm_res, X_test)
-    cv_svm <- append(cv_svm, fit)
-    cv_acc5[j] = mean(fit == y_test)
+    cv_acc5_svm[j] = mean(fit == y_test)
+    
+    ## RF
+    rf <- randomForest(x = X_train, y = as.factor(y_train))
+    rf <- predict(rf, X_test)
+    
+    cv_acc5_rf[j] = mean(rf == y_test)
   }
   
-  cv_acc5_50times <- append(cv_acc5_50times, mean(cv_acc5))
+  cv_acc5_50times_svm <- append(cv_acc5_50times, mean(cv_acc5_svm))
+  cv_acc5_50times_rf <- append(cv_acc5_50times, mean(cv_acc5_rf))
 } ## end for
 
-boxplot(cv_acc5_50times)
+boxplot(cv_acc5_50times_svm)
+boxplot(cv_acc5_50times_rf)
 ```
 
 
