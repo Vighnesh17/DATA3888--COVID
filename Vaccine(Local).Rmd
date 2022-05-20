@@ -416,7 +416,7 @@ highest_r2
 
 ## https://cran.r-project.org/web/packages/permimp/vignettes/permimp-package.html
 colnames(train)[5] <- "CPI_score_2020"
-optimal_rf <- randomForest(VRI ~ ., data= train, mtry = 3, replace = FALSE, 
+optimal_rf <- randomForest(vri ~ ., data= train, mtry = 3, replace = FALSE, 
                          nodesize = 7, keep.forest = TRUE, keep.inbag = FALSE, ntree= 250)
 ## compute permutation importance
 rf_permimp <- permimp(optimal_rf, progressBar = FALSE, conditional = TRUE,scaled = TRUE)
@@ -492,7 +492,7 @@ rf <- randomForest(vri ~ .,
                 keep.forest=FALSE, importance=TRUE, seed=3888)
 
 vimp <- varImp(rf,scale = TRUE)
-vimp <- vimp[order(vimp$Overall,decreasing = TRUE),,drop = FALSE]
+vimp <- vimp[order(vimp$Overall,decreasing = TRUE), drop = FALSE]
 vimp$var <- rownames(vimp)                  
 vimp$Overall <- round(vimp$Overall,3)
 

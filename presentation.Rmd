@@ -37,15 +37,38 @@ style_duo_accent(
 ```
 
 
+
 # Introduction (30s)
 
+<!-- Feel free to change the content. I am not entirely sure about this part -Aurora -->
 
-- Background
-  - Dataset
-- Motivation
-- Main Questions
-  - List the 2 sub Q
+.pull-left[
+### Background
+  - Data set
+    - OWID COVID Data set
+    - COVID Availability Policy
+    - 2021 GHS Index
+    - Corruption Perceptions Index 2020
+    - World Life satisfaction 2021
+]
+  
+  
+.pull-right[
 
+### Motivation
+
+Develop an index to measure the vaccination uptake speed and coverage among countries. Then find out the factors that may highly affect this index.
+
+]
+
+.center[
+### Investigate factors that may affect the vaccination uptake
+
+  <!-- Vaccine Roll-Out Index -->
+  
+  <!-- Vaccination Time lag -->
+  
+]
 ---
 
 # Vaccination Time Lag: First dose vs Fully vaccination (40s)
