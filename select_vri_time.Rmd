@@ -1,0 +1,347 @@
+---
+title: "Select_VRI_Time"
+author: "Xinzhi Wang"
+date: '2022-05-19'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(tibble)
+library(ggplot2)
+library(ggthemes)
+library(maps)
+library(plotly) # Interactive data visualizations
+library(viridis) # Color gradients
+library(lubridate)
+library(randomForest) 
+library(ranger)       # a faster implementation of randomForest
+library(caret)        # performe many machine learning models
+library(broom)  # try: `install.packages("backports")` if diretly installing broom gives an error
+library(reshape2)
+library(lubridate)
+```
+
+
+```{r}
+covid <- read.csv("owid-covid-data.csv")
+covid$date <- as.Date(covid$date)
+```
+
+
+```{r}
+estimate_r <- function(data){
+  data$index <- c(1:length(data$people_vaccinated))
+  SS <- getInitial(data$people_vaccinated ~ SSlogis(data$index, alpha, xmid, scale), data = data)
+  K_start <- SS["alpha"]
+  R_start <- 1/SS["scale"]
+  N0_start <- SS["alpha"]/(exp(SS["xmid"]/SS["scale"])+1)
+  
+  log_formula <- formula(data$people_vaccinated ~ K*N0*exp(R*data$index)/(K + N0*(exp(R*data$index) - 1)))
+  
+  
+  formu<-nls(log_formula, data = data, start = list(K = K_start, R = R_start, N0 = N0_start))
+  
+  return(formu)
+}
+```
+
+```{r}
+## FOR measuring goodness of fit
+RSQUARE = function(y_actual,y_predict){
+  cor(y_actual,y_predict)^2
+}
+```
+
+
+```{r}
+estimate_vri <- function(data, r){
+   vri <- r * (data$people_vaccinated [length(data$people_vaccinated)]) / data$population[1]
+  
+  return(vri)
+}
+```
+
+```{r}
+estimate_missing_values <- function(c,var) {
+    country <- covid[covid$location == c, ]
+    print(country %>% select (var))
+    country$var[is.na(country %>% select (var))] = 0
+    if (i == 1){
+      } else{
+      if (country$var[i] == 0){
+        country$var[i] = country$var[i-1]
+      }
+    }
+}
+
+
+```
+
+```{r}
+d=as.Date('2010-08-01')
+AddMonths(d, 6)
+
+d %m+% months(6)
+```
+
+```{r}
+countries <- unique(covid$location)
+
+deleted <- c("Afghanistan", "Antigua and Barbuda", "Bangladesh","Benin", "Bhutan", "Bonaire Sint Eustatius and Saba", "Botswana", "Burundi","Burkina Faso", "Cameroon", "Cote d'Ivoire", "Djibouti", "Democratic Republic of Congo", "Ethiopia","Eritrea", "Gabon", "Ghana", "Guernsey", "Guinea", "Kenya", "Kuwait", "Liberia", "Laos", "Namibia", "Nepal","Nicaragua", "Niger", "Nigeria", "Palestine", "Philippines", "Pitcairn", "Rwanda", "Saint Helena", "Senegal", "Sierra Leone", "Somalia", "South Sudan", "Sudan", "Tokelau", "Turkmenistan","Tanzania", "Uganda","Yemen", "World", "Zambia","Albania","Puerto Rico", "International", "Marshall Islands", "Micronesia (country)", "Nauru", "Palau", "Saint Pierre and Miquelon", "Vatican", "Wallis and Futuna")#"Albania" ,"Puerto Rico"
+countries = countries[! countries %in% deleted]
+
+vri_data_1 <- NULL
+avg <- 0
+count <- 0
+for (c in countries) {
+  print(c)
+  country <- covid[covid$location == c, ]
+  # print(min(country$date[!is.na(country$people_vaccinated)]))
+  # break
+  
+  start <- min(country$date[!is.na(country$people_vaccinated)])
+  end <- start %m+% months(6)
+  
+  country <- country[start <= country$date & country$date < end, ]
+  
+  
+  country$people_vaccinated[is.na(country$people_vaccinated)] = 0
+
+  for (i in 1:nrow(country)){
+    if (i == 1){
+      } else{
+      if (country$people_vaccinated[i] == 0){
+        country$people_vaccinated[i] = country$people_vaccinated[i-1]
+      }
+    }
+  }
+  
+  country <- country %>%
+    select(location, date, people_vaccinated, population)
+  
+  
+  formu <- estimate_r(country)
+  
+  avg <- avg +  RSQUARE(country$people_vaccinated, predict(formu))
+  count <- count + 1
+  
+  r <- summary(formu)$coefficients[[2]]
+  
+  vri <- estimate_vri(country, r)
+  
+  
+  temp <- data.frame(location = c, vri = vri, 
+                     aged_65_older = covid[covid$location == c, ]$aged_65_older[1], 
+                     gdp_per_capita = covid[covid$location == c, ]$gdp_per_capita[1], 
+                     cardiovasc_death_rate = covid[covid$location == c, ]$cardiovasc_death_rate[1], 
+                     population_density = covid[covid$location == c, ]$population_density[1], 
+                     hospital_beds_per_thousand = covid[covid$location == c, ]$hospital_beds_per_thousand[1], 
+                     human_development_index = covid[covid$location == c, ]$human_development_index[1],
+                     extreme_poverty = covid[covid$location == c, ]$extreme_poverty[1],
+                     diabetes_prevalence = covid[covid$location == c, ]$diabetes_prevalence[1],
+                     life_expectancy = covid[covid$location == c, ]$life_expectancy[1],
+                     iso_code = covid[covid$location == c, ]$iso_code[1])
+  vri_data_1 <- rbind(vri_data_1, temp)
+}
+avg / count
+```
+
+
+```{r}
+countries <- unique(covid$location)
+
+deleted <- c("Afghanistan", "Antigua and Barbuda", "Bangladesh","Benin", "Bhutan", "Bonaire Sint Eustatius and Saba", "Botswana", "Burundi","Burkina Faso", "Cameroon", "Cote d'Ivoire", "Djibouti", "Democratic Republic of Congo", "Ethiopia","Eritrea", "Gabon", "Ghana", "Guernsey", "Guinea", "Kenya", "Kuwait", "Liberia", "Laos", "Namibia", "Nepal","Nicaragua", "Niger", "Nigeria", "Palestine", "Philippines", "Pitcairn", "Rwanda", "Saint Helena", "Senegal", "Sierra Leone", "Somalia", "South Sudan", "Sudan", "Tokelau", "Turkmenistan","Tanzania", "Uganda","Yemen", "World", "Zambia","Albania","Puerto Rico", "International", "Marshall Islands", "Micronesia (country)", "Nauru", "Palau", "Saint Pierre and Miquelon", "Vatican", "Wallis and Futuna")#"Albania" ,"Puerto Rico"
+countries = countries[! countries %in% deleted]
+
+print(max(covid$date))
+
+vri_data_2 <- NULL
+avg <- 0
+count <- 0
+for (c in countries) {
+  # print(c)
+  country <- covid[covid$location == c, ]
+  
+  start <- min(country$date[!is.na(country$people_vaccinated)])
+  end <- start %m+% months(12)
+  
+  country <- country[start <= country$date & country$date < end, ]
+  
+  country$people_vaccinated[is.na(country$people_vaccinated)] = 0
+
+  for (i in 1:nrow(country)){
+    if (i == 1){
+      } else{
+      if (country$people_vaccinated[i] == 0){
+        country$people_vaccinated[i] = country$people_vaccinated[i-1]
+      }
+    }
+  }
+  
+  country <- country %>%
+    select(location, date, people_vaccinated, population)
+  
+  
+  formu <- estimate_r(country)
+  
+  avg <- avg +  RSQUARE(country$people_vaccinated, predict(formu))
+  count <- count + 1
+  
+  r <- summary(formu)$coefficients[[2]]
+  
+  vri <- estimate_vri(country, r)
+  
+  
+  temp <- data.frame(location = c, vri = vri, 
+                     aged_65_older = covid[covid$location == c, ]$aged_65_older[1], 
+                     gdp_per_capita = covid[covid$location == c, ]$gdp_per_capita[1], 
+                     cardiovasc_death_rate = covid[covid$location == c, ]$cardiovasc_death_rate[1], 
+                     population_density = covid[covid$location == c, ]$population_density[1], 
+                     hospital_beds_per_thousand = covid[covid$location == c, ]$hospital_beds_per_thousand[1], 
+                     human_development_index = covid[covid$location == c, ]$human_development_index[1],
+                     extreme_poverty = covid[covid$location == c, ]$extreme_poverty[1],
+                     diabetes_prevalence = covid[covid$location == c, ]$diabetes_prevalence[1],
+                     life_expectancy = covid[covid$location == c, ]$life_expectancy[1],
+                     iso_code = covid[covid$location == c, ]$iso_code[1])
+  vri_data_2 <- rbind(vri_data_2, temp)
+}
+avg / count
+```
+
+
+
+
+
+```{r}
+corruption <- read_xlsx("data/CPI2020_GlobalTablesTS_210125.xlsx", sheet=1,skip=2)
+corruption <- corruption %>% select (c("ISO3", "CPI score 2020")) 
+#corruption
+
+happiness <- read_csv("data/happiness-cantril-ladder.csv")
+happiness <- happiness %>% group_by(Code) %>%
+  arrange(Year) %>%
+  filter(!is.na(`Life satisfaction in Cantril Ladder (World Happiness Report 2021)`)) %>%
+  dplyr::summarise(satisfaction=last(`Life satisfaction in Cantril Ladder (World Happiness Report 2021)`)) 
+
+
+joint_data <- merge(vri_data_2,corruption,  by.x=c("iso_code"), by.y=c("ISO3"))
+
+joint_data <- merge(joint_data,happiness, by.x=c("iso_code"), by.y=c("Code"))
+
+# GHE-INDEX
+ghs <- read_csv("data/2021-GHS-Index-April-2022.csv")
+ghs <- ghs %>% filter(Year == 2021) %>% select(Country,`OVERALL SCORE`)
+
+joint_data <- merge(joint_data, ghs,  by.x=c("location"), by.y=c("Country"))
+colnames(joint_data)[15] <- "GHS_score"
+joint_data
+```
+
+```{r}
+# Basic scatter plot
+df <- joint_data %>% filter(!is.na(population_density) # set a threshold to remove outliers:
+                                    &!is.na(gdp_per_capita) &!is.na(aged_65_older)&
+                                      !is.na(extreme_poverty)&
+                                      !is.na(human_development_index)& 
+                                      !is.na(cardiovasc_death_rate)& 
+                                      !is.na(diabetes_prevalence)&
+                                      !is.na(hospital_beds_per_thousand)) %>% 
+                                      
+                            select(c(location,vri,population_density,gdp_per_capita,aged_65_older,
+                                     `CPI score 2020`,
+                                     satisfaction,extreme_poverty,human_development_index,life_expectancy,
+                                      cardiovasc_death_rate,diabetes_prevalence,
+                                      hospital_beds_per_thousand, GHS_score)) 
+
+df
+```
+
+
+```{r}
+min_max_norm <- function(x) {
+    (x - min(x)) / (max(x) - min(x))
+}
+#df
+scaled_data <- data.frame(vri = df$vri, lapply(df %>% select(-location, -vri), min_max_norm))
+# UNSURE RN
+scaled_data
+```
+
+
+```{r warning=FALSE}
+# hyper parameter grid search (definitely need a bit modify)
+mtry <-  seq(3, 11, by = 1)
+num_trees <- c(100,150,200,250,300,350,400,450,500)
+
+
+# Manual Search
+#control <- trainControl(method="cv", number=3, search="grid")
+grid_param <- expand.grid(.mtry=mtry)
+modellist <- list()
+for (ntree in num_trees) {
+	set.seed(3888)
+	fit <- train( vri~., 
+                      data= train, 
+                      method='rf', 
+                      tuneGrid=grid_param, 
+	                    ntree= ntree,
+                      trControl=trainControl(method='cv', 
+                        number=3) )
+	key <- toString(ntree)
+	modellist[[key]] <- fit$finalModel
+
+}
+
+
+## COMPARE RESULTS
+
+#lowest_mse <- 1
+#model_mse <- modellist[[1]]
+highest_r2 <- 0
+model_r2 <- modellist[[1]]
+for (i in c(1:length(modellist))) {
+
+  result <- predict(modellist[[i]], newdata=train %>% select(-vri))
+  result_avg <- mean(train$vri)
+  r2 = 1 - (sum((train$vri - result)^2))/(sum((train$vri - result_avg)^2))
+  if (highest_r2 < r2){
+     highest_r2 = r2
+     model_r2 = modellist[[i]]
+  }
+  # mse = min(modellist[[i]]$mse)
+  # if (lowest_mse > mse){
+  #   lowest_rmse = mse
+  #   model_mse = modellist[[i]]
+  # }
+ 
+}
+#model_mse
+model_r2 
+highest_r2
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -5,7 +5,8 @@ author: "Aurora Wang, David Vucic, Diana Cao, Harun Hodzic, Sylvia Liu, Tina Tia
 institute: "University of Sydney"
 date: "`r Sys.Date()`"
 output:
-  xaringan::chocolate-fonts:
+  xaringan::moon_reader:
+    css: xaringan-themer.css
     lib_dir: libs
     nature:
       highlightStyle: github
@@ -23,6 +24,18 @@ knitr::opts_chunk$set(
   fig.align = "center"
 )
 ```
+
+
+```{r xaringan-themer, include=FALSE, warning=FALSE}
+library(xaringanthemer)
+style_duo_accent(
+  primary_color = "#43418A", secondary_color = "#03A696",
+  header_font_google = google_font('Libre Baskerville', "400"),
+  text_font_google   = google_font("DM Sans", "400", "400i"),
+  code_font_google   = google_font("IBM Plex Mono")
+)
+```
+
 
 # Introduction (30s)
 

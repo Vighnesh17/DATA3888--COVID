@@ -521,7 +521,7 @@ as.data.frame(cor_mat) %>% filter(value > 0.8 & value != 1)
 
 ```{r}
 # Full model (Removing non-linear trend predictors + strong correlated predictors)
-M1 = lm(vri ~ ., data = df)  #  %>% select(-extreme_poverty,-population_density,-human_development_index,-`CPI score 2020`)
+M1 = lm(vri ~ ., data = scaled_data)  #  %>% select(-extreme_poverty,-population_density,-human_development_index,-`CPI score 2020`)
 
 # Try doing backward selection
 step_back_aic = step(M1, direction = "backward", trace = FALSE)

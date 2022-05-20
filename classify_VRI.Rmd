@@ -32,6 +32,11 @@ covid <- read.csv("owid-covid-data.csv")
 covid$date <- as.Date(covid$date)
 ```
 
+```{r}
+temp <- covid[covid$location == "United States", ]
+ggplot() + 
+  geom_point(data = temp, aes(x = date, y = people_vaccinated))
+```
 
 ```{r}
 estimate_r <- function(data){
@@ -221,7 +226,7 @@ train
 
 
 ```{r}
-set.seed(1)
+set.seed(3888)
 
 X = scaled_data %>% select(-vri, -label)
 y = scaled_data$label
@@ -254,8 +259,8 @@ for (i in 1:n_sim) {
     cv_acc5_rf[j] = mean(rf == y_test)
   }
   
-  cv_acc5_50times_svm <- append(cv_acc5_50times, mean(cv_acc5_svm))
-  cv_acc5_50times_rf <- append(cv_acc5_50times, mean(cv_acc5_rf))
+  cv_acc5_50times_svm <- append(cv_acc5_50times_svm, mean(cv_acc5_svm))
+  cv_acc5_50times_rf <- append(cv_acc5_50times_rf, mean(cv_acc5_rf))
 } ## end for
 
 boxplot(cv_acc5_50times_svm)
@@ -278,7 +283,7 @@ grid_param <- expand.grid(.mtry=mtry)
 modellist <- list()
 for (ntree in num_trees) {
 	fit <- train( vri~., 
-                      data= train, 
+                      data= scaled_data, 
                       method='rf', 
                       tuneGrid=grid_param, 
 	                    ntree= ntree,
