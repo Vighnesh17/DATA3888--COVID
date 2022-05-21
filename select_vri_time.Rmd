@@ -11,76 +11,64 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(dplyr)
 library(readxl)
 library(tibble)
 library(ggplot2)
 library(ggthemes)
 library(maps)
+
 library(plotly) # Interactive data visualizations
 library(viridis) # Color gradients
 library(lubridate)
+
 library(randomForest) 
 library(ranger)       # a faster implementation of randomForest
 library(caret)        # performe many machine learning models
 library(broom)  # try: `install.packages("backports")` if diretly installing broom gives an error
-library(reshape2)
-library(lubridate)
+
+library(reshape2) # to use melt()
+
+library(deSolve)
+library(permimp) # for calculating conditional importance in a speedy way
 ```
 
 
+## Reading data
 ```{r}
-covid <- read.csv("owid-covid-data.csv")
-covid$date <- as.Date(covid$date)
+covid <- read.csv("./data/covid_data_latest.csv")
+covid$date <- as.Date(covid$date) #, format = "%d/%m/%y")
+#head(covid_data)
 ```
 
 
+## Vaccinations progress  
+
+### Vaccine Roll-Out Index (vri) values for the countries
+
+(Reference: https://www.mdpi.com/2076-393X/10/2/194/htm)
+
+> **Estimate Vaccine Uptakes Rates r* for Countries**
+
+
 ```{r}
-estimate_r <- function(data){
-  data$index <- c(1:length(data$people_vaccinated))
-  SS <- getInitial(data$people_vaccinated ~ SSlogis(data$index, alpha, xmid, scale), data = data)
-  K_start <- SS["alpha"]
-  R_start <- 1/SS["scale"]
-  N0_start <- SS["alpha"]/(exp(SS["xmid"]/SS["scale"])+1)
-  
-  log_formula <- formula(data$people_vaccinated ~ K*N0*exp(R*data$index)/(K + N0*(exp(R*data$index) - 1)))
-  
-  
-  formu<-nls(log_formula, data = data, start = list(K = K_start, R = R_start, N0 = N0_start))
-  
-  return(formu)
-}
+## NEW
+covid_clean = covid %>% 
+  filter(str_length(iso_code) <= 3) %>% 
+  select(iso_code, location, date, people_vaccinated,population) %>% 
+  remove_missing() %>%
+  filter(people_vaccinated != 0) %>% 
+  group_by(location) %>% 
+  mutate(t_days = difftime(date, min(date), units = "days") %>% as.integer())
 ```
 
 ```{r}
-## FOR measuring goodness of fit
-RSQUARE = function(y_actual,y_predict){
-  cor(y_actual,y_predict)^2
-}
-```
-
-
-```{r}
+## calculate vri using: est_rate * d/N
 estimate_vri <- function(data, r){
-   vri <- r * (data$people_vaccinated [length(data$people_vaccinated)]) / data$population[1]
+  vri <- r * (data$people_vaccinated[length(data$people_vaccinated)]) / data$population[1]
   
   return(vri)
 }
-```
-
-```{r}
-estimate_missing_values <- function(c,var) {
-    country <- covid[covid$location == c, ]
-    print(country %>% select (var))
-    country$var[is.na(country %>% select (var))] = 0
-    if (i == 1){
-      } else{
-      if (country$var[i] == 0){
-        country$var[i] = country$var[i-1]
-      }
-    }
-}
-
-
 ```
 
 ```{r}
@@ -88,6 +76,79 @@ d=as.Date('2010-08-01')
 AddMonths(d, 6)
 
 d %m+% months(6)
+```
+
+
+```{r logy-asympreg}
+# initiate r1_list, to store location, r, fit, respectively
+r1_list = list("location" = c(), "r" = c(), "fit" = c())
+vri_data <- NULL
+
+#covid_clean$location
+
+## for each country (location)
+for (loc in unique(covid_clean$location)) {
+  # subset cleaned data to one country
+  covid_subset = covid_clean %>% filter(location == loc)
+  
+  start <- min(country$date[!is.na(country$people_vaccinated)])
+  end <- start %m+% months(4)
+  
+  country <- country[start <= country$date & country$date < end, ]
+  
+  # try to fit model
+  fit = tryCatch(
+    # main function, fit asymptote regression model
+    expr = {
+      nls(log(people_vaccinated) ~ SSasymp(t_days, Asym, R0, lrc), data = covid_subset)
+    },
+    # if error, fit linear model
+    error = function(error_message){
+      return( lm(log(people_vaccinated) ~ t_days, data = covid_subset) )
+    }
+  )
+  
+  # calculate my r value, may need transform before put into vri formula
+  if (class(fit) == "lm") {
+    r = coef(fit)["t_days"]
+  } else if (class(fit) == "nls") {
+    lrc = coef(fit)["lrc"]
+    r = exp(lrc)
+  }
+  
+  r1_list$location = c(r1_list$location, loc)
+  r1_list$r = c(r1_list$r, r)
+  r1_list$fit = c(r1_list$fit, list(fit))
+  
+  vri <- estimate_vri(covid_clean, r)
+  
+  
+  temp <- data.frame(location = loc, vri = vri,
+                      aged_65_older = covid[covid$location == loc, ]$aged_65_older[1],
+                      gdp_per_capita = covid[covid$location == loc, ]$gdp_per_capita[1],
+                      cardiovasc_death_rate = covid[covid$location == loc, ]$cardiovasc_death_rate[1],
+                      population_density = covid[covid$location == loc, ]$population_density[1],
+                      hospital_beds_per_thousand = covid[covid$location == loc,]$hospital_beds_per_thousand[1],
+                      human_development_index = covid[covid$location == loc, ]$human_development_index[1],
+                      extreme_poverty = covid[covid$location == loc, ]$extreme_poverty[1],
+                      diabetes_prevalence = covid[covid$location == loc, ]$diabetes_prevalence[1],
+                      life_expectancy = covid[covid$location == loc, ]$life_expectancy[1],
+                      iso_code = covid[covid$location == loc, ]$iso_code[1])
+
+
+  vri_data <- rbind(vri_data, temp)
+}
+
+
+## Measuring model fitness, residual standard error (RSE).
+for (i in seq_len(length(r1_list$fit))) {
+  r1_list$rse[[i]] = sigma(r1_list$fit[[i]])
+}
+
+
+## Country using linear model 
+unwanted_loc <- r1_list$location[names(r1_list$r) == "t_days"]
+vri_data <- vri_data %>% filter (!(location %in% unwanted_loc))
 ```
 
 ```{r}
@@ -152,6 +213,73 @@ for (c in countries) {
 avg / count
 ```
 
+
+```{r logy-asympreg}
+# initiate r1_list, to store location, r, fit, respectively
+r1_list = list("location" = c(), "r" = c(), "fit" = c())
+vri_data <- NULL
+
+#covid_clean$location
+
+## for each country (location)
+for (loc in unique(covid_clean$location)) {
+  # subset cleaned data to one country
+  covid_subset = covid_clean %>% filter(location == loc)
+  
+  # try to fit model
+  fit = tryCatch(
+    # main function, fit asymptote regression model
+    expr = {
+      nls(log(people_vaccinated) ~ SSasymp(t_days, Asym, R0, lrc), data = covid_subset)
+    },
+    # if error, fit linear model
+    error = function(error_message){
+      return( lm(log(people_vaccinated) ~ t_days, data = covid_subset) )
+    }
+  )
+  
+  # calculate my r value, may need transform before put into vri formula
+  if (class(fit) == "lm") {
+    r = coef(fit)["t_days"]
+  } else if (class(fit) == "nls") {
+    lrc = coef(fit)["lrc"]
+    r = exp(lrc)
+  }
+  
+  r1_list$location = c(r1_list$location, loc)
+  r1_list$r = c(r1_list$r, r)
+  r1_list$fit = c(r1_list$fit, list(fit))
+  
+  vri <- estimate_vri(covid_clean, r)
+  
+  
+  temp <- data.frame(location = loc, vri = vri,
+                      aged_65_older = covid[covid$location == loc, ]$aged_65_older[1],
+                      gdp_per_capita = covid[covid$location == loc, ]$gdp_per_capita[1],
+                      cardiovasc_death_rate = covid[covid$location == loc, ]$cardiovasc_death_rate[1],
+                      population_density = covid[covid$location == loc, ]$population_density[1],
+                      hospital_beds_per_thousand = covid[covid$location == loc,]$hospital_beds_per_thousand[1],
+                      human_development_index = covid[covid$location == loc, ]$human_development_index[1],
+                      extreme_poverty = covid[covid$location == loc, ]$extreme_poverty[1],
+                      diabetes_prevalence = covid[covid$location == loc, ]$diabetes_prevalence[1],
+                      life_expectancy = covid[covid$location == loc, ]$life_expectancy[1],
+                      iso_code = covid[covid$location == loc, ]$iso_code[1])
+
+
+  vri_data <- rbind(vri_data, temp)
+}
+
+
+## Measuring model fitness, residual standard error (RSE).
+for (i in seq_len(length(r1_list$fit))) {
+  r1_list$rse[[i]] = sigma(r1_list$fit[[i]])
+}
+
+
+## Country using linear model 
+unwanted_loc <- r1_list$location[names(r1_list$r) == "t_days"]
+vri_data <- vri_data %>% filter (!(location %in% unwanted_loc))
+```
 
 ```{r}
 countries <- unique(covid$location)

@@ -34,7 +34,6 @@ library(deSolve)
 
 ```{r}
 covid <- read.csv("owid-covid-data.csv")
-covid$date <- as.Date(covid_data$date, format = "%d/%m/%y")
 #head(covid_data)
 ```
 
