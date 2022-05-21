@@ -59,7 +59,7 @@ shinyUI(
                 ## bottom panel
                 fluidRow(
                     # input panel on the left
-                    column(width = 3,
+                    column(width = 5,
                            wellPanel(
                                strong("Predictors"),
                                hr(),
@@ -73,18 +73,18 @@ shinyUI(
                     ),
                     
                     # output panel in the middle
-                    column(width = 4,
+                    column(width = 7,
                            p("Your inputs:"),
                            tableOutput("vriInput_table"),
                            p("calculated output table/value + short explanation"),
                            style = 'border-right: 1px solid #DDDDDD'
                     ),
                     
-                    # plot on the right
-                    column(width = 5,
-                           verbatimTextOutput("clickInfo"),
-                           verbatimTextOutput("vriOutput"),
-                    )
+                    # # plot on the right
+                    # column(width = 5,
+                    #        verbatimTextOutput("clickInfo"),
+                    #        verbatimTextOutput("vriOutput"),
+                    # )
                     
                 )## END fluidRow 2
                 
@@ -162,17 +162,18 @@ shinyUI(
         ), ## END tabPanel
         
 
-        # Vaccine rollout and Availability ----------------------------------------
+        # About page ----------------------------------------
 
         tabPanel(
-            "Vaccine Rollout Stages",
+            "About",
             fluidPage(
-                h1("Heading"),
-                fluidRow(
-                    verbatimTextOutput("rollout_barPlot")
-                )
+                h1("Additional information"),
+                hr(),
+                h1("References"),
+                hr(),
             )
-        ) ## END tabPanel - rollout
+
+        ) ## END tabPanel - About
          
     )
     

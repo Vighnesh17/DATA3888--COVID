@@ -11,19 +11,20 @@ shinyServer(function(input, output) {
         # pal = colorNumeric(palette = "OrRd",
         #                    domain = covid_data$selectedVar)
         
-        vri_date = my(input$vriDate)
-        # filter based on date selected
-        countries$data = rep(NA, length(countries$names))
-        df = covid_data %>% 
-            filter(date >= vri_date & date <= rollforward(vri_date)) %>% 
-            filter(str_count(iso_code) < 4) %>% 
-            group_by(iso_code) %>% 
-            summarise(
-                value = sum(new_cases, na.rm = TRUE)
-            )
-        for (iso in df$iso_code) {
-            countries$data[countries$names == iso.expand(iso)] = df$value[df$iso_code == iso]
-        }
+        # vri_date = my(input$vriDate)
+        # # filter based on date selected
+        # countries$data = rep(NA, length(countries$names))
+        # df = covid_data %>% 
+        #     filter(date >= vri_date & date <= rollforward(vri_date)) %>% 
+        #     filter(str_count(iso_code) < 4) %>% 
+        #     group_by(iso_code) %>% 
+        #     summarise(
+        #         value = sum(new_cases, na.rm = TRUE)
+        #     )
+        
+        # for (iso in vri_data$iso_code) {
+        #     countries$data[countries$names == iso.expand(iso, regex = FALSE)[1]] = vri_data$vri_scaled[which(vri_data$iso_code == iso)]
+        # }
         
         ## Fashion into leaflet map, static
         leaflet(countries,
@@ -31,25 +32,27 @@ shinyServer(function(input, output) {
                                          minZoom = 1.25,
                                          zoomSnap = 0.25,
                                          zoomDelta = 0.25)) %>% 
-            addTiles() %>% 
-            setMaxBounds(lng1 = "Infinity", lat1 = -90, 
-                         lng2 = "-Infinity", lat2 = 90) %>% 
+            addTiles(group = "tiles") %>% 
+            setMaxBounds(lng1 = "Infinity", lat1 = -90,
+                         lng2 = "-Infinity", lat2 = 90) %>%
             setView(lng = 10, lat = 45, zoom = 1) %>% 
             leaflet::addLegend(
+                group = "legend",
                 pal = pal,
-                values = covid_data$new_cases,
-                title = "VRI",
+                values = vri_data$vri_scaled,
+                title = "VRI (0~1)",
                 position = "topright",
                 opacity = 0.7
             ) %>%
             addPolygons(
-                layerId = ~names,
+                layerId = ~ADM0_A3,
+                group = "polygons",
                 weight = 0.5,
                 smoothFactor = 0.2,
                 dashArray = "",
                 color = "#B3B6B7",
                 opacity = 1,
-                fillColor = ~pal(data),
+                fillColor = ~pal(vri_scaled),
                 fillOpacity = 0.7,
                 highlightOptions = highlightOptions(weight = 2,
                                                     color = "#FFFFFF",
@@ -60,9 +63,8 @@ shinyServer(function(input, output) {
                                                     sendToBack = TRUE),
                 label = lapply(
                     paste0(
-                        "<strong>", countries$names,"</strong>", "<br>",
-                        "Data: ", format(countries$data,
-                                         big.mark = ",")
+                        "<strong>",countries$ADMIN,"</strong>", "<br>",
+                        "VRI (0~1): ", countries$vri_scaled
                     ), HTML
                 ),
                 labelOptions = labelOptions(direction = "auto")
@@ -142,7 +144,6 @@ shinyServer(function(input, output) {
             "Population" = "population",
             "GDP per capita" = "gdp_per_capita"
         )
-        input_table
     })
     
     output$vriOutput <- renderPrint({
@@ -349,6 +350,21 @@ shinyServer(function(input, output) {
     ## barplot? for vaccine rollout, grouped by stages
     output$rollout_barPlot <- renderPrint({
         "dummy text"
+    })
+    
+    output$rollout_scatterPlot <- renderPlotly({
+        varname_rollout = "new_vaccinations_smoothed"
+        varname2_rollout = "new_deaths"
+        covid_data %>% 
+            filter(location == input$rollout_country) %>% 
+            ggplot() +
+            aes(x = date) +
+            geom_point(aes(y = varname_rollout)) +
+            geom_line(aes(y = varname2_rollout / population * varname_rollout, colour = "death_rate"))
+            labs(x = "Date", y = "New vaccination",
+                 title = input$rollout_country) +
+            scale_y_continuous("value of max and SD", 
+                               sec.axis = sec_axis(~./population, name = "number of zero-crossings"))
     })
 
 })
