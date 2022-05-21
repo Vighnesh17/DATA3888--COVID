@@ -225,6 +225,8 @@ zscore <- function(x) {
 min_max_norm <- function(x) {
     (x - min(x)) / (max(x) - min(x))
 }
+
+df <- df %>% filter(vri < 0.01)
 #df
 scaled_data <- data.frame(vri = df$vri, lapply(df %>% select(-location, -vri), min_max_norm))
 # UNSURE RN
@@ -309,7 +311,8 @@ boxplot(cv_acc5_50times_rf)
 
 ```{r warning=FALSE}
 # hyper parameter grid search (definitely need a bit modify)
-mtry <-  seq(3, 11, by = 1)
+set.seed(1)
+mtry <-  seq(2, 12, by = 1)
 num_trees <- c(100,150,200,250,300,350,400,450,500)
 
 
@@ -339,9 +342,9 @@ highest_r2 <- 0
 model_r2 <- modellist[[1]]
 for (i in c(1:length(modellist))) {
 
-  result <- predict(modellist[[i]], newdata=train %>% select(-vri))
-  result_avg <- mean(train$vri)
-  r2 = 1 - (sum((train$vri - result)^2))/(sum((train$vri - result_avg)^2))
+  result <- predict(modellist[[i]], newdata=scaled_data%>% select(-vri))
+  result_avg <- mean(scaled_data$vri)
+  r2 = 1 - (sum((scaled_data$vri - result)^2))/(sum((scaled_data$vri - result_avg)^2))
   if (highest_r2 < r2){
      highest_r2 = r2
      model_r2 = modellist[[i]]
