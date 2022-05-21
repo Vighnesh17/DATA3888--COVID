@@ -159,13 +159,13 @@ shinyServer(function(input, output) {
     })
     
     ## plot for vaccination prediction (time series?)
-    output$time_plot <- renderDygraph({
+    output$vri_timeplot <- renderDygraph({
         # validate that user input, to avoid error message if nothing is passed on
         validate(
             need(input$plot_countries, "Please select a country.")
         )
         
-        varname = c("people_vaccinated", "people_fully_vaccinated")
+        varname = c("people_vaccinated")
         countries = input$plot_countries
         
         # subset dataset into selected variable and time, by countries (iso_code)
@@ -201,22 +201,23 @@ shinyServer(function(input, output) {
             need(input$covid_map_shape_click, "Please click on a country.")
         )
         
-        varname = input$timePlot_click_var
-        countries = input$covid_map_shape_click$id
+        iso = input$covid_map_shape_click$id
+        country_name = countries$ADMIN[countries$ADM0_A3 == iso]
+        validate(
+            need( (iso %in% r_list$iso_code), paste0("There was no vaccination data for ",country_name,".") )
+        )
         
-        # subset dataset into selected variable and time, by countries (iso_code)
-        covid_subset = covid_data %>% 
-            select(date, iso_code, varname) %>% 
-            filter(iso_code %in% countries) %>% 
-            pivot_wider(names_from = iso_code,
-                        values_from = all_of(varname))
+        idx = which(r_list$iso_code == iso)
         
         # create time series
-        subset.xts = xts(select(covid_subset, !date), 
-                         order.by = covid_subset$date)
+        subset.xts = xts(cbind( r_list$y.real[[idx]], fitted(r_list$fit[[idx]]) ), 
+                         order.by = r_list$date[[idx]])
+        names(subset.xts) = c("Real", "Fitted")
+        
         # time series plot of var vs time (time series)
         subset.xts %>% 
-            dygraph() %>% 
+            dygraph(main = paste0("People Vaccinated Trend (",country_name,")")) %>% 
+            dySeries("Fitted", color = "red", strokePattern = "dashed") %>% 
             dyRangeSelector() %>% 
             dyHighlight()
     })

@@ -68,8 +68,7 @@ ct_model = function(df, log.y = FALSE, model = c("logis", "asymp")) {
     mutate(t_days = difftime(date, min(date), units = "days") %>% as.integer())
   
   # initiate r_list, to store location, r, fit, ... respectively
-  # r_list = list("location" = c(), "r" = c(), "fit" = c(), "y.real" = c(), "date" = c(), "t_days" = c(), "population" = c(), "iso_code" = c())
-  r_list = list("location" = c(), "r" = c(), "fit" = c(), "y.real" = c(), "vri_data" = c(), "iso_code" = c())
+  r_list = list("location" = c(), "r" = c(), "fit" = c(), "y.real" = c(), "date" = c(), "t_days" = c(), "vri_data" = c(), "iso_code" = c())
   
   ## formulae, based on selected model, people_vaccinated, and log.y
   if (log.y) {
@@ -132,8 +131,10 @@ ct_model = function(df, log.y = FALSE, model = c("logis", "asymp")) {
     r_list[[2]] = c(r_list[[2]], r)
     r_list[[3]] = c(r_list[[3]], list(fit))
     r_list[[4]] = c(r_list[[4]], list(covid_subset$people_vaccinated))
-    r_list[[5]] = c(r_list[[5]], list(vri_data))
-    r_list[[6]] = c(r_list[[6]], iso)
+    r_list[[5]] = c(r_list[[5]], list(covid_subset$date))
+    r_list[[6]] = c(r_list[[6]], list(covid_subset$t_days))
+    r_list[[7]] = c(r_list[[7]], list(vri_data))
+    r_list[[8]] = c(r_list[[8]], iso)
   }
   
   ## Measuring model fitness, residual standard error (RSE).

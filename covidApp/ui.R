@@ -84,7 +84,7 @@ shinyUI(
                                type = "tabs",
                                tabPanel(
                                    "Vaccination trend",
-                                   p("people_vaccinated & fitted line"),
+                                   dygraphOutput("timePlot_click"),
                                    verbatimTextOutput("clickInfo")
                                ),
                                tabPanel(
@@ -162,7 +162,7 @@ shinyUI(
                 # Predictions (bottom) and time series plots of vaccination (up)
                 mainPanel(
                     # people vaccinated trend, plot on top
-                    dygraphOutput("time_plot"),
+                    dygraphOutput("vri_timeplot"),
                     hr(),
                     # prediction of vaccination? under time series plot
                     verbatimTextOutput("prediction")
