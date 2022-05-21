@@ -82,7 +82,7 @@ avaliable <- function(data, country) {
 ```
 
 ```{r}
-country_data <- data[data$location == "Iran", ]
+country_data <- data[data$location == "United States", ]
 country_data$date <- as.Date(country_data$date)
   
   country_policy <- country_data %>%

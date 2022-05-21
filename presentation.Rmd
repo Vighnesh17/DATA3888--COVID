@@ -6,6 +6,7 @@ institute: "University of Sydney"
 date: "`r Sys.Date()`"
 output:
   xaringan::moon_reader:
+    css: xaringan-themer.css
     lib_dir: libs
     nature:
       highlightStyle: github
@@ -24,16 +25,74 @@ knitr::opts_chunk$set(
 )
 ```
 
-# Introduction
+
+```{r xaringan-themer, include=FALSE, warning=FALSE}
+library(xaringanthemer)
+style_duo_accent(
+  primary_color = "#43418A", secondary_color = "#03A696",
+  header_font_google = google_font('Libre Baskerville', "400"),
+  text_font_google   = google_font("DM Sans", "400", "400i"),
+  code_font_google   = google_font("IBM Plex Mono")
+)
+```
+
+
+
+# Introduction (30s)
+
+<!-- Feel free to change the content. I am not entirely sure about this part -Aurora -->
+
+.pull-left[
+### Background
+  - Data set
+    - OWID COVID Data set
+    - COVID Availability Policy
+    - 2021 GHS Index
+    - Corruption Perceptions Index 2020
+    - World Life satisfaction 2021
+]
+  
+  
+.pull-right[
+
+### Motivation
+
+Develop an index to measure the vaccination uptake speed and coverage among countries. Then find out the factors that may highly affect this index.
+
+]
+
+.center[
+### Investigate factors that may affect the vaccination uptake
+
+  <!-- Vaccine Roll-Out Index -->
+  
+  <!-- Vaccination Time lag -->
+  
+]
+---
+
+# Vaccination Time Lag: First dose vs Fully vaccination (40s)
+
+- highlight & Innovation
+- Evaluation strategies
+  - include results
+
 
 ---
 
-# Dataset
+# Vaccination Roll-Out Index (100s)
+
+- highlight & Innovation
+- Evaluation strategies
+  - include results
 
 ---
 
-# Vaccination Time Lag: First dose vs Fully vaccination
+# Consultation (10s)
+
+- Main results
+- most of the finding shown in shiny app
 
 ---
 
-# Vaccination Availability
+# Demo (60s)
