@@ -58,33 +58,42 @@ shinyUI(
                 
                 ## bottom panel
                 fluidRow(
-                    # input panel on the left
-                    column(width = 5,
-                           wellPanel(
-                               strong("Predictors"),
-                               hr(),
-                               numericInput(inputId = "vriInput_pop",
-                                            label = "Country population",
-                                            value = 1e6),
-                               numericInput(inputId = "vriInput_gdp",
-                                            label = "GDP per capita",
-                                            value = 2000),
-                           )
-                    ),
+                    # # input panel on the left
+                    # column(width = 3,
+                    #        wellPanel(
+                    #            strong("Predictors"),
+                    #            hr(),
+                    #            numericInput(inputId = "vriInput_pop",
+                    #                         label = "Country population",
+                    #                         value = 1e6),
+                    #            numericInput(inputId = "vriInput_gdp",
+                    #                         label = "GDP per capita",
+                    #                         value = 2000),
+                    #        )
+                    # ),
                     
                     # output panel in the middle
-                    column(width = 7,
-                           p("Your inputs:"),
-                           tableOutput("vriInput_table"),
-                           p("calculated output table/value + short explanation"),
+                    column(width = 6,
+                           DTOutput("vri_dtable"),
                            style = 'border-right: 1px solid #DDDDDD'
                     ),
                     
-                    # # plot on the right
-                    # column(width = 5,
-                    #        verbatimTextOutput("clickInfo"),
-                    #        verbatimTextOutput("vriOutput"),
-                    # )
+                    # plot on the right
+                    column(width = 6,
+                           tabsetPanel(
+                               type = "tabs",
+                               tabPanel(
+                                   "Vaccination trend",
+                                   p("people_vaccinated & fitted line"),
+                                   verbatimTextOutput("clickInfo")
+                               ),
+                               tabPanel(
+                                   "Rollout policy stages",
+                                   p("stages barplot")
+                               )
+                           )
+                           
+                    )
                     
                 )## END fluidRow 2
                 

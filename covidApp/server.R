@@ -150,6 +150,14 @@ shinyServer(function(input, output) {
         my(input$vriDate)
     })
     
+    output$vri_dtable <- renderDT({
+        countries@data %>% select(ADMIN, vri_scaled) %>% 
+            filter(!is.na(vri_scaled)) %>% 
+            arrange(-vri_scaled) %>% 
+            rename("Location" = ADMIN, "VRI (0-1)" = vri_scaled) %>% 
+            datatable() %>% formatRound("VRI (0-1)", digits = 4)
+    })
+    
     ## plot for vaccination prediction (time series?)
     output$time_plot <- renderDygraph({
         # validate that user input, to avoid error message if nothing is passed on
