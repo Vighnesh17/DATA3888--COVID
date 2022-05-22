@@ -233,6 +233,25 @@ scaled_data <- data.frame(vri = df$vri, lapply(df %>% select(-location, -vri), m
 scaled_data$vri <- sigmoid(zscore(scaled_data$vri))
 ```
 
+clustering countries on most improtant variables:
+
+```{r}
+variables <- df %>% select(location, vri,`CPI score 2020`,population_density,gdp_per_capita,cardiovasc_death_rate,human_development_index)
+
+colnames(variables)
+variables_mat <- as.matrix(variables[,-1])
+rownames(variables_mat) <- as.matrix(variables[,1])
+
+#next two lines of code are used to determine the best number of clusters
+fviz_nbclust(variables_mat,kmeans,method= "wss")
+fviz_nbclust(variables_mat,kmeans,method= "silhouette")
+
+km <- kmeans(variables_mat,3,nstart = 25) #3 clusters
+print(km)
+fviz_cluster(km,variables_mat, labelsize = 5) #visualise cluster
+
+```
+
 
 Setting up the threshold
 ```{r}
