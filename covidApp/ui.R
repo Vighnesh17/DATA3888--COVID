@@ -5,7 +5,7 @@ shinyUI(
     
     navbarPage(
         # Application title
-        "DATA3888 COVID-19 Data Analysis", id = "navbar",
+        "DATA3888 COVID-19 Data Analysis (Group C7)", id = "navbar",
         theme = bs_theme(version = 4, bootswatch = "minty"),
         
         # Map tab page ------------------------------------------------------------
@@ -49,6 +49,7 @@ shinyUI(
                                ),
                                tabPanel(
                                    "Time Lag Data",
+                                   strong("Time Lag (days) of All Countries"),
                                    DTOutput("timeLag_dtable")
                                )
                            ),
@@ -85,16 +86,42 @@ shinyUI(
         
 
         # About page ----------------------------------------
-
+        
         tabPanel(
             "About",
             fluidPage(
-                h1("Additional information"),
+                h2("Additional information"),
+                strong("Disclaimer:"),
+                tags$div("All data, including country and region boundaries, are from third parties and does not represent any political affiliation of the members of this group."),
+                br(),
+                strong("Data Source:"),
+                tags$div("Our covid data, vaccination policy data and satisfaction 2021 data are from Our World in Data. Corruption data is from Transparency International 2021 and GHS data is from 2021 Global Health. The national borders data are from Natural Earth and do not represent any political position of the group."),
+                br(),
+                p(em("Vaccination Rollout Policy Stages:")),
+                p(
+                    "0 - No availability", br(),
+                    "1 - Availability for ONE of the following: key workers/ clinically vulnerable groups / elderly groups", br(),
+                    "2 - Availability for TWO of the following: key workers/ clinically vulnerable groups / elderly groups", br(),
+                    "3 - Availability for ALL the following: key workers/ clinically vulnerable groups / elderly groups", br(),
+                    "4 - Availability for all three, plus partial additional availability (select broad groups/ages", br(),
+                    "5 - Universal availability"
+                ),
+                
                 hr(),
-                h1("References"),
-                hr(),
+                h2("References"),
+                tags$ul(
+                    tags$li(
+                        tags$a(href = "https://ourworldindata.org/", "Our World Data")
+                    ),
+                    tags$li(
+                        tags$a(href="https://www.transparency.org/en/cpi/2021", "Transparency International")
+                    ),
+                    tags$li(
+                        tags$a(href="https://www.ghsindex.org/", "2021 Global Health Security Index")
+                    )
+                )
             )
-
+            
         ) ## END tabPanel - About
          
     )
