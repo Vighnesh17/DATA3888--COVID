@@ -115,7 +115,7 @@ for (loc in unique(covid_clean$location)) {
   fit = tryCatch(
     # main function, fit asymptote regression model
     expr = {
-      nls(log(people_vaccinated) ~ SSasymp(t_days, Asym, R0, lrc), data = covid_subset)
+      nls(people_vaccinated ~ SSlogis(t_days, K, xmid, scal), data = covid_subset)
     },
     # if error, fit linear model
     error = function(error_message){
@@ -127,8 +127,8 @@ for (loc in unique(covid_clean$location)) {
   if (class(fit) == "lm") {
     r = coef(fit)["t_days"]
   } else if (class(fit) == "nls") {
-    lrc = coef(fit)["lrc"]
-    r = exp(lrc)
+    scal = coef(fit)["scal"]
+    r = 1/scal
   }
   
   r1_list$location = c(r1_list$location, loc)
@@ -268,22 +268,10 @@ scaled_data$label <- ifelse(scaled_data$vri < high , 0, 1)
 
 
 
-```{r}
-set.seed(3888)
-ind <- createDataPartition(scaled_data$vri, p = .8,list=FALSE) 
-train <- scaled_data[ind,]
-X_test <- scaled_data[-ind,] %>% select(-vri)
-y_test <- scaled_data[-ind,] %>% select(vri)
-dim(train)
-dim(X_test)
-train
-```
-
-
 
 
 ```{r}
-set.seed(3888)
+set.seed(1)
 
 X = scaled_data %>% select(-vri, -label)
 y = scaled_data$label
