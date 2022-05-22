@@ -64,7 +64,7 @@ shinyServer(function(input, output) {
                 label = lapply(
                     paste0(
                         "<strong>",countries$ADMIN,"</strong>", "<br>",
-                        "VRI (0~1): ", countries$vri_scaled
+                        "VRI (0~1): ", format(countries$vri_scaled, digits = 2)
                     ), HTML
                 ),
                 labelOptions = labelOptions(direction = "auto")
@@ -159,7 +159,7 @@ shinyServer(function(input, output) {
     })
     
     ## plot for vaccination prediction (time series?)
-    output$vri_timeplot <- renderDygraph({
+    output$vri_timePlot <- renderDygraph({
         # validate that user input, to avoid error message if nothing is passed on
         validate(
             need(input$plot_countries, "Please select a country.")
@@ -185,13 +185,14 @@ shinyServer(function(input, output) {
             dyHighlight()
     })
     
-    output$recommendation <- renderText({
-        "dummy text"
+    click_countryname = reactive({
+        iso = input$covid_map_shape_click$id
+        countries$ADMIN[countries$ADM0_A3 == iso]
     })
     
     output$clickInfo <- renderPrint({
-        input$covid_map_shape_click
-        # return the country ISO code on click
+        # return the country name on click, for heading of plots
+        click_countryname()
     })
     
     ## the time series plot under the map, reactive to click on map
@@ -202,7 +203,7 @@ shinyServer(function(input, output) {
         )
         
         iso = input$covid_map_shape_click$id
-        country_name = countries$ADMIN[countries$ADM0_A3 == iso]
+        country_name = click_countryname()
         validate(
             need( (iso %in% r_list$iso_code), paste0("There was no vaccination data for ",country_name,".") )
         )
@@ -222,6 +223,58 @@ shinyServer(function(input, output) {
             dyHighlight()
     })
     
+    ## barplot? for vaccine rollout speed, each policy stage
+    output$policy_barPlot <- renderPlotly({
+        # validate that user input, to avoid error message if nothing is passed on
+        validate(
+            need(input$covid_map_shape_click, "Please click on a country.")
+        )
+        
+        iso = input$covid_map_shape_click$id
+        country_name = click_countryname()
+        
+        # validate the iso code of country clicked is have data on people_vaccinated and policy
+        validate(
+            need( (iso %in% r_list$iso_code), paste0("There was no vaccination data for ",country_name,".") ),
+            need( (iso %in% policy$Code), paste0("There was no policy data for ",country_name,".") )
+        )
+        
+        policy_subset = covid_policy %>% 
+            filter(iso_code == iso)
+        
+        # initiate people_vaccinated per stage column
+        policy_dates = policy_subset %>% 
+            group_by(vaccination_policy) %>% 
+            summarise(
+                start_date = min(date),
+                end_date = max(date)
+            ) %>% 
+            filter( (vaccination_policy != 0) & !is.na(vaccination_policy) )
+        
+        stage = speed = c()
+        for (i in policy_dates$vaccination_policy) {
+            idx = which(policy_dates$vaccination_policy == i)
+            lm_list = policy_subset %>% 
+                filter(date > policy_dates$start_date[idx] & date <=  policy_dates$end_date[idx]) %>% 
+                ct_model(model = "linear")
+            stage = c(stage, i)
+            speed = c(speed, ifelse(is.null(lm_list$r), NA, lm_list$r))
+        }
+        policy_speed = tibble(stage = as.factor(stage), speed = speed)
+        
+        gg = policy_speed %>% 
+            remove_missing() %>% 
+            ggplot(aes(x = stage, y = speed)) +
+            geom_col(aes(fill = stage), position = "dodge") +
+            labs(x = "Vaccine Rollout Policy stage",
+                 y = "Rate of people vaccinated (per day)",
+                 title = paste0("Vaccination Uptake Rate (",country_name,")")) +
+            scale_fill_discrete(name = "Stage")
+        ggplotly(gg, tooltip = c("x", "y")) %>% 
+            layout(title = list(xanchor = "center", x = 0.5),
+                   hoverlabel = list(align = "left"))
+    })
+
     ## vaccination time lag dataframe subset on selected countries
     covid_subset_lag = reactive({
         
@@ -354,11 +407,6 @@ shinyServer(function(input, output) {
         # the predicted value based on user input
         # lmfit from global.R, a simple linear model
         print(predict(lmfit, new_data, interval = "confidence"))
-    })
-    
-    ## barplot? for vaccine rollout, grouped by stages
-    output$rollout_barPlot <- renderPrint({
-        "dummy text"
     })
     
     output$rollout_scatterPlot <- renderPlotly({

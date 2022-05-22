@@ -33,12 +33,18 @@ load("data/snapshot.RData")
 countries = rgdal::readOGR("data/ne_50m_admin_0_countries", layer = "ne_50m_admin_0_countries")
 
 ## load in availability data
-# policy <- read.csv("../Availability/covid-vaccination-policy.csv")
+policy <- read.csv("../Availability/covid-vaccination-policy.csv")
+policy$Day = ymd(policy$Day)
+policy$vaccination_policy = as.factor(policy$vaccination_policy)
 
 covid_data = covid_data %>% 
   mutate(
     date = ymd(date)
   )
+
+# merge covid_data with policy
+covid_policy = full_join(covid_data, select(policy, -Entity), 
+                         by = c("iso_code" = "Code", "date" = "Day"))
 
 ## numerical variables
 # num_vars = colnames(covid_data)[sapply(covid_data, is.numeric)]
@@ -58,7 +64,7 @@ loc_all = covid_data %>%
 
 ## VRI calculation
 # function to find r and vri, data cleaning included in function
-ct_model = function(df, log.y = FALSE, model = c("logis", "asymp")) {
+ct_model = function(df, log.y = FALSE, model = c("logis", "asymp", "linear")) {
   # cleaning
   covid_clean = df %>% 
     filter(str_length(iso_code) <= 3) %>% 
@@ -99,7 +105,11 @@ ct_model = function(df, log.y = FALSE, model = c("logis", "asymp")) {
     fit = tryCatch(
       # main function, fit asymptote regression model
       expr = {
-        nls(f1, data = covid_subset)
+        if (model == "linear") {
+          lm(f2, data = covid_subset)
+        } else {
+          nls(f1, data = covid_subset)
+        }
       },
       # if error, fit linear model
       error = function(error_message){
@@ -111,7 +121,6 @@ ct_model = function(df, log.y = FALSE, model = c("logis", "asymp")) {
     if (class(fit) == "lm") {
       r = coef(fit)["t_days"]
     } else if (class(fit) == "nls") {
-      
       if (model == "logis") {scal = coef(fit)["scal"]; r = 1/scal} else
         if (model == "asymp") {lrc = coef(fit)["lrc"]; r = exp(lrc)}
     }

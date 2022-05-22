@@ -42,17 +42,17 @@ shinyUI(
                 
                 br(),
                 
-                ## time slider
-                fluidRow(
-                    div(style = "margin:auto; width:80%;",
-                        sliderTextInput("vriDate",
-                                        label = NULL,
-                                        choices = vriDate_choices_char,
-                                        selected = vriDate_choices_char[9],
-                                        grid = TRUE,
-                                        width = "100%")
-                    )
-                ),
+                # ## time slider
+                # fluidRow(
+                #     div(style = "margin:auto; width:80%;",
+                #         sliderTextInput("vriDate",
+                #                         label = NULL,
+                #                         choices = vriDate_choices_char,
+                #                         selected = vriDate_choices_char[9],
+                #                         grid = TRUE,
+                #                         width = "100%")
+                #     )
+                # ),
                 
                 hr(), ## horizontal line
                 
@@ -81,15 +81,15 @@ shinyUI(
                     # plot on the right
                     column(width = 6,
                            tabsetPanel(
+                               header = renderText("clickInfo"),
                                type = "tabs",
                                tabPanel(
                                    "Vaccination trend",
-                                   dygraphOutput("timePlot_click"),
-                                   verbatimTextOutput("clickInfo")
+                                   dygraphOutput("timePlot_click")
                                ),
                                tabPanel(
                                    "Rollout policy stages",
-                                   p("stages barplot")
+                                   plotlyOutput("policy_barPlot")
                                )
                            )
                            
@@ -162,7 +162,7 @@ shinyUI(
                 # Predictions (bottom) and time series plots of vaccination (up)
                 mainPanel(
                     # people vaccinated trend, plot on top
-                    dygraphOutput("vri_timeplot"),
+                    dygraphOutput("vri_timePlot"),
                     hr(),
                     # prediction of vaccination? under time series plot
                     verbatimTextOutput("prediction")
