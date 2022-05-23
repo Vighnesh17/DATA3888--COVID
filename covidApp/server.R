@@ -21,17 +21,9 @@ shinyServer(function(input, output) {
             setMaxBounds(lng1 = "Infinity", lat1 = -90,
                          lng2 = "-Infinity", lat2 = 90) %>%
             setView(lng = 10, lat = 45, zoom = 1) %>% 
-            leaflet::addLegend(
-                group = "legend",
-                pal = pal,
-                values = vri_data$vri_scaled,
-                title = "VRI (0~1)",
-                position = "topright",
-                opacity = 0.7
-            ) %>%
             addPolygons(
                 layerId = ~ADM0_A3,
-                group = "polygons",
+                group = "VRI Overlay",
                 weight = 0.5,
                 smoothFactor = 0.2,
                 dashArray = "",
@@ -48,15 +40,110 @@ shinyServer(function(input, output) {
                                                     sendToBack = TRUE),
                 label = lapply(
                     paste0(
-                        "<strong>",countries$ADMIN,"</strong>", "<br>",
-                        "VRI (0~1): ", format(countries$vri_scaled, digits = 2)
+                        "<strong>",countries$ADMIN,"</strong>","<br>",
+                        "VRI (0~1): ",format(countries$vri_scaled, digits = 2),"<br>",
+                        "Time Lag (1st dose to 2nd dose): ",countries$`Lag: Euclidean distance`
                     ), HTML
                 ),
                 labelOptions = labelOptions(direction = "auto")
-            ) %>%
+            ) %>% 
+            addPolygons(
+                layerId = ~ADMIN,
+                group = "Time Lag Overlay",
+                weight = 0.5,
+                smoothFactor = 0.2,
+                dashArray = "",
+                color = "#B3B6B7",
+                opacity = 1,
+                fillColor = ~pal2(`Lag: Euclidean distance`),
+                fillOpacity = 0.7,
+                highlightOptions = highlightOptions(weight = 2,
+                                                    color = "#FFFFFF",
+                                                    dashArray = "",
+                                                    # fillColor = "#FF2600",
+                                                    # fillOpacity = 0.7,
+                                                    bringToFront = TRUE,
+                                                    sendToBack = TRUE),
+                label = lapply(
+                    paste0(
+                        "<strong>",countries$ADMIN,"</strong>","<br>",
+                        "VRI (0~1): ",format(countries$vri_scaled, digits = 2),"<br>",
+                        "Time Lag (1st dose to 2nd dose): ",countries$`Lag: Euclidean distance`
+                    ), HTML
+                ),
+                labelOptions = labelOptions(direction = "auto")
+            ) %>% 
+            addLayersControl(
+                baseGroups = c("VRI Overlay", "Time Lag Overlay"),
+                options = layersControlOptions(collapsed = FALSE),
+                position = "bottomright"
+            ) %>% 
             addEasyButton(easyButton(
                 icon="fa-globe", title="Zoom to Level 1",
-                onClick=JS("function(btn, map){ map.setZoom(1); }")))
+                onClick=JS("function(btn, map){ map.setZoom(1); }"))) %>% 
+            # add vri legend (default)
+            leaflet::addLegend(
+                group = "VRI Overlay",
+                pal = pal,
+                values = ~vri_scaled,
+                title = "VRI (0~1)",
+                position = "topright",
+                opacity = 0.7
+            ) %>%
+            # leaflet::addLegend(
+            #     group = "Time Lag Overlay",
+            #     pal = pal2,
+            #     values = ~`Lag: Euclidean distance`,
+            #     title = "Time Lag<br>(1st dose to 2nd dose)",
+            #     position = "topright",
+            #     opacity = 0.7
+            # ) %>% 
+            hideGroup(c("VRI Overlay", "Time Lag Overlay")) %>% 
+            showGroup("VRI Overlay")
+    })
+    
+    # update legend according to layer group chosen
+    observeEvent(input$covid_map_groups, {
+        proxy <- leafletProxy("covid_map", data = countries) %>% clearControls()
+        req(input$covid_map_groups)
+        
+        if (input$covid_map_groups[2] == "VRI Overlay") {
+            proxy %>% 
+                # add vri legend (default)
+                leaflet::addLegend(
+                    group = "VRI Overlay",
+                    pal = pal,
+                    values = ~vri_scaled,
+                    title = "VRI (0~1)",
+                    position = "topright",
+                    opacity = 0.7
+                )
+        } else if (input$covid_map_groups[2] == "Time Lag Overlay") {
+            proxy %>%
+                leaflet::addLegend(
+                    group = "Time Lag Overlay",
+                    pal = pal2,
+                    values = ~`Lag: Euclidean distance`,
+                    title = "Time Lag<br>(1st dose to 2nd dose)",
+                    position = "topright",
+                    opacity = 0.7
+                )
+        }
+    })
+    
+    ## temporary
+    output$inputEvents <- renderPrint({reactiveValuesToList(input)})
+    
+    observeEvent(input$covid_map_shape_click, {
+        if (input$covid_map_shape_click$group == "VRI Overlay") {
+            selected_country = countries$ADMIN[countries$ADM0_A3 == input$covid_map_shape_click$id]
+        } else if (input$covid_map_shape_click$group == "Time Lag Overlay") {
+            selected_country = input$covid_map_shape_click$id
+        }
+        updateSelectizeInput(inputId = "select_country",
+                             label = "Country for graphs:",
+                             choices = countries$ADMIN,
+                             selected = selected_country)
     })
     
     output$vri_dtable <- renderDT({
@@ -64,32 +151,51 @@ shinyServer(function(input, output) {
             filter(!is.na(vri_scaled)) %>% 
             arrange(-vri_scaled) %>% 
             rename("Location" = ADMIN, "VRI (0-1)" = vri_scaled) %>% 
-            datatable() %>% formatRound("VRI (0-1)", digits = 4)
+            datatable(options = list(scrollY = 200)) %>% 
+            formatRound("VRI (0-1)", digits = 4)
+    })
+    
+    click_iso = reactive({
+        # req(input$covid_map_groups)
+
+        # if (input$covid_map_shape_click$group == "VRI Overlay") {
+        #     input$covid_map_shape_click$id
+        # } else if (input$covid_map_shape_click$group == "Time Lag Overlay") {
+        #     countries$ADM0_A3[countries$ADMIN == input$covid_map_shape_click$id]
+        # }
+        countries$ADM0_A3[countries$ADMIN == input$select_country]
     })
     
     click_countryname = reactive({
-        iso = input$covid_map_shape_click$id
-        countries$ADMIN[countries$ADM0_A3 == iso]
+        # req(input$covid_map_groups)
+        # 
+        # if (input$covid_map_shape_click$group == "VRI Overlay") {
+        #     countries$ADMIN[countries$ADM0_A3 == input$covid_map_shape_click$id]
+        # } else if (input$covid_map_shape_click$group == "Time Lag Overlay") {
+        #     input$covid_map_shape_click$id
+        # }
+        input$select_country
     })
     
     click_countryname_location = reactive({
-        iso = input$covid_map_shape_click$id
-        countries$location[countries$ADM0_A3 == iso]
-    })
-    
-    output$clickInfo <- renderPrint({
-        # return the country name on click, for heading of plots
-        click_countryname()
+        # req(input$covid_map_groups)
+        # 
+        # if (input$covid_map_shape_click$group == "VRI Overlay") {
+        #     countries$location[countries$ADM0_A3 == input$covid_map_shape_click$id]
+        # } else if (input$covid_map_shape_click$group == "Time Lag Overlay") {
+        #     countries$location[countries$ADMIN == input$covid_map_shape_click$id]
+        # }
+        countries$location[countries$ADMIN == input$select_country]
     })
     
     ## the time series plot under the map, reactive to click on map
     logistic_timePlot <- reactive({
         # validate that user input, to avoid error message if nothing is passed on
         validate(
-            need(input$covid_map_shape_click, "Please click on a country.")
+            need(input$covid_map_shape_click, "Please select/click on a country.")
         )
         
-        iso = input$covid_map_shape_click$id
+        iso = click_iso()
         country_name = click_countryname()
         validate(
             need( (iso %in% r_list$iso_code), paste0("There was no vaccination data for ",country_name,".") )
@@ -113,10 +219,10 @@ shinyServer(function(input, output) {
     asymptotic_timePlot <- reactive({
         # validate that user input, to avoid error message if nothing is passed on
         validate(
-            need(input$covid_map_shape_click, "Please click on a country.")
+            need(input$covid_map_shape_click, "Please select/click on a country.")
         )
         
-        iso = input$covid_map_shape_click$id
+        iso = click_iso()
         country_name = click_countryname()
         validate(
             need( (iso %in% r_list2$iso_code), paste0("There was no vaccination data for ",country_name,".") )
@@ -149,10 +255,10 @@ shinyServer(function(input, output) {
     output$policy_barPlot <- renderPlotly({
         # validate that user input, to avoid error message if nothing is passed on
         validate(
-            need(input$covid_map_shape_click, "Please click on a country.")
+            need(input$covid_map_shape_click, "Please select/click on a country.")
         )
         
-        iso = input$covid_map_shape_click$id
+        iso = click_iso()
         country_name = click_countryname()
         
         # validate the iso code of country clicked is have data on people_vaccinated and policy
@@ -201,10 +307,10 @@ shinyServer(function(input, output) {
     output$timeLag_timePlot <- renderDygraph({
         # validate that user input, to avoid error message if nothing is passed on
         validate(
-            need(input$covid_map_click, "Please select a country.")
+            need(input$covid_map_shape_click, "Please select/click on a country.")
         )
         
-        iso = input$covid_map_shape_click$id
+        iso = click_iso()
         country_name = click_countryname()
         # filter based on country selected
         covid_subset = covid_data %>% 
@@ -253,32 +359,16 @@ shinyServer(function(input, output) {
             need(click_countryname_location %in% countries_lag, "Not enough data to calculate time lag between 1st and 2nd dose.")
         )
         total_lag %>% 
-            as_tibble(rownames = "location") %>% 
             filter(location %in% click_countryname_location) %>% 
             select("location", "LagType", "Lag: Euclidean distance") %>% 
             rename("Lag (days): Euclidean distance" = "Lag: Euclidean distance")
-    })
+    }, digits = 0)
     
     ## time lag dtable for all countries
     output$timeLag_dtable <- renderDT({
         total_lag %>% 
-            as_tibble(rownames = "location") %>% 
-            select(-V3, -V5, -LagType)
-    }, options = list(autoWidth = TRUE)
-    )
-    
-    ## text for vaccine prediction
-    output$prediction <- renderPrint({
-        print("placeholder for prediction output")
-        # user inputs
-        new_data = tibble(
-            population = input$population,
-            gdp_per_capita = input$gdp,
-            total_vaccinations = input$vacc_available
-        )
-        # the predicted value based on user input
-        # lmfit from global.R, a simple linear model
-        print(predict(lmfit, new_data, interval = "confidence"))
+            select(-V3, -V5, -LagType) %>% 
+            datatable(options = list(autoWidth = TRUE, scrollY = 250))
     })
 
 })

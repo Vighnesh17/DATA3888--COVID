@@ -5,6 +5,7 @@ library(tidyverse)
 library(lubridate)
 library(kableExtra)
 library(leaflet)
+options("rgdal_show_exportToProj4_warnings"="none")
 library(maps)
 library(plotly)
 library(dygraphs)
@@ -335,3 +336,13 @@ lag_df_3 = mapply(lagType, lag = lag_vector_3, windowsize = 100)
 # combine into one dataframe
 total_lag = cbind(t(lag_df_1), t(lag_df_2), t(lag_df_3))
 colnames(total_lag) = c("LagType", "Lag: Euclidean distance", "LagType", "Lag: Manhattan distance", "LagType", "Lag: Minkowksi distance (P=3)")
+total_lag = total_lag %>% as_tibble(rownames = "location") %>% 
+  mutate("Lag: Euclidean distance" = as.numeric(`Lag: Euclidean distance`),
+         "Lag: Manhattan distance" = as.numeric(`Lag: Manhattan distance`),
+         "Lag: Minkowksi distance (P=3)" = as.numeric(`Lag: Minkowksi distance (P=3)`))
+
+# add time lag data to countries
+countries@data = left_join(countries@data, total_lag, by = "location")
+bins2 = c(10, 30, 40, 50, 60, 80, 100)
+# palette function
+pal2 = colorBin("OrRd", domain = total_lag$`Lag: Euclidean distance`, bins = bins2)

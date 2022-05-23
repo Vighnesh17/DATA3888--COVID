@@ -21,13 +21,29 @@ shinyUI(
                     
                     column(width = 8,
                            # here map output
-                           leafletOutput("covid_map")
+                           leafletOutput("covid_map"),
+                           # the floating window for user input on top of map
+                           absolutePanel(
+                               id = "select_country_panel",
+                               bottom = 85,
+                               left = 20,
+                               width = 200,
+                               height = 50,
+                               draggable = FALSE,
+                               wellPanel(style = "opacity: 0.8; background-color: #ffff;",
+                                         # let user to select country
+                                         selectInput(inputId = "select_country",
+                                                     label = "Country for graphs:",
+                                                     choices = countries$ADMIN),
+                                         style = "z-index:1002;")
+                               )
                     ),
                     
                     column(width = 4,
                            # here VRI table
                            DTOutput("vri_dtable"),
-                           style = "height:400px; overflow-y:scroll;",
+                           # verbatimTextOutput("inputEvents"),
+                           style = "height:400px;" #overflow-y:scroll;",
                     )
                     
                 ), ## END fluidRow 1
@@ -43,13 +59,16 @@ shinyUI(
                                type = "tabs",
                                tabPanel(
                                    "Time Lag Graph (1st vs 2nd Dose)",
-                                   dygraphOutput("timeLag_timePlot"),
-                                   br(),
-                                   tableOutput("timeLag_value")
+                                   column(12,
+                                          align = "center",
+                                          tableOutput("timeLag_value"),
+                                          dygraphOutput("timeLag_timePlot")
+                                          )
                                ),
                                tabPanel(
-                                   "Time Lag Data",
-                                   strong("Time Lag (days) of All Countries"),
+                                   "Time Lag Data Table",
+                                   h4("Time Lag (days) of All Countries"),
+                                   br(),
                                    DTOutput("timeLag_dtable")
                                )
                            ),
@@ -72,6 +91,7 @@ shinyUI(
                                ),
                                tabPanel(
                                    "Rollout policy stages",
+                                   br(),
                                    plotlyOutput("policy_barPlot")
                                )
                            )
