@@ -192,7 +192,7 @@ shinyServer(function(input, output) {
     logistic_timePlot <- reactive({
         # validate that user input, to avoid error message if nothing is passed on
         validate(
-            need(input$covid_map_shape_click, "Please select/click on a country.")
+            need(input$select_country, "Please select/click on a country.")
         )
         
         iso = click_iso()
@@ -219,7 +219,7 @@ shinyServer(function(input, output) {
     asymptotic_timePlot <- reactive({
         # validate that user input, to avoid error message if nothing is passed on
         validate(
-            need(input$covid_map_shape_click, "Please select/click on a country.")
+            need(input$select_country, "Please select/click on a country.")
         )
         
         iso = click_iso()
@@ -255,7 +255,7 @@ shinyServer(function(input, output) {
     output$policy_barPlot <- renderPlotly({
         # validate that user input, to avoid error message if nothing is passed on
         validate(
-            need(input$covid_map_shape_click, "Please select/click on a country.")
+            need(input$select_country, "Please select/click on a country.")
         )
         
         iso = click_iso()
@@ -307,7 +307,7 @@ shinyServer(function(input, output) {
     output$timeLag_timePlot <- renderDygraph({
         # validate that user input, to avoid error message if nothing is passed on
         validate(
-            need(input$covid_map_shape_click, "Please select/click on a country.")
+            need(input$select_country, "Please select/click on a country.")
         )
         
         iso = click_iso()
@@ -351,7 +351,7 @@ shinyServer(function(input, output) {
     output$timeLag_value <- renderTable({
         # validate user input, to avoid error message if nothing is passed on
         validate(
-            need(input$covid_map_shape_click, "")
+            need(input$select_country, "")
         )
         click_countryname_location = click_countryname_location()
         # validate if the clicked country is in the list of filtered countries

@@ -34,7 +34,8 @@ shinyUI(
                                          # let user to select country
                                          selectInput(inputId = "select_country",
                                                      label = "Country for graphs:",
-                                                     choices = countries$ADMIN),
+                                                     choices = countries$ADMIN,
+                                                     selected = "Australia"),
                                          style = "z-index:1002;")
                                )
                     ),
