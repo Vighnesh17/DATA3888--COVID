@@ -90,11 +90,16 @@ for (loc in unique(covid_clean$location)) {
   # subset cleaned data to one country
   covid_subset = covid_clean %>% filter(location == loc)
   
-  print(loc)
   
   start <- min(covid_subset$date[!is.na(covid_subset$people_vaccinated)])
   end <- start %m+% months(4)
 
+  print(loc)
+  print(start)
+  print(end)
+  
+  
+  
   covid_subset <- covid_subset[start <= covid_subset$date & covid_subset$date < end, ]
   
   # try to fit model
