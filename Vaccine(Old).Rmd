@@ -21,6 +21,7 @@ library(maps)
 library(plotly) # Interactive data visualizations
 library(viridis) # Color gradients
 library(lubridate)
+library(qtlcharts) # Interactive scatter plots 
 
 library(randomForest) 
 library(ranger)       # a faster implementation of randomForest
@@ -31,6 +32,7 @@ library(reshape2) # to use melt()
 
 library(deSolve)
 library(permimp) # for calculating conditional importance in a speedy way
+
 ```
 
 ## Reading data
@@ -38,7 +40,6 @@ library(permimp) # for calculating conditional importance in a speedy way
 covid_data <- read.csv("covid_data_latest.csv")
 covid_data$date <- as.Date(covid_data$date) #, format = "%d/%m/%y")
 covid <- covid_data
-#head(covid_data)
 ```
 
 
@@ -48,132 +49,132 @@ covid <- covid_data
 
 (Reference: https://www.mdpi.com/2076-393X/10/2/194/htm)
 
-> **Estimate Vaccine Uptakes Rates r* for Countries**
-"The logistic growth model was used to estimate the vaccination uptake rate. In the logistic model, the cumulative number of doses administered c(t) satisfies the following equation: $$c(t) = \frac{K}{1+a\cdot{e}^{-r\cdot t}}$$,"_ where K is the total vaccinations administered at the end of the date recorded, r is the vaccination uptake rate(i.e. speed), and $\frac{K}{1+a} = c(0)$ is the initial number of doses given.
-
-
-```{r}
-covid_clean = covid_data %>% 
-  filter(str_length(iso_code) <= 3) %>% 
-  select(iso_code, location, date, people_vaccinated,population) %>% 
-  filter(!is.na(people_vaccinated) & people_vaccinated != 0) %>% 
-  group_by(location) %>% 
-  mutate(t_days = difftime(date, min(date), units = "days") %>% as.integer())
-```
-
-
-```{r}
-# estimate_r <- function(data){
-# 
-#   #data$index <- c(1:length(data$total_vaccinations))
-# 
-#   SS <- getInitial(data$total_vaccinations ~ SSlogis(data$index, alpha, xmid, scale), data = data)
-# 
-#   K_start <- SS["alpha"]
-#   R_start <- 1/SS["scale"]
-#   N0_start <- SS["alpha"]/(exp(SS["xmid"]/SS["scale"])+1)
-#   
-#   log_formula <- formula(data$total_vaccinations ~ K*N0*exp(R*data$index)/(K + N0*(exp(R*data$index) - 1)))
-#   
-#   
-#   formu<-nls(log_formula, data = data, start = list(K = K_start, R = R_start, N0 = N0_start))
-#   
-#   return(formu)
-# }
-```
-
-
-> Define and Calculate Vaccine Roll-Out Index (vri) 
-"The Vaccine Roll-out Index (vri) for a country was defined as follows: $$vri=r\cdot \frac{d}{N}$$," where r is the vaccination uptake rate as defined in the previous section, d is the total vaccinations, and N is the population. 
-
-**vri was used as an index to compare the overall vaccination progression among different countries, as it reflects both the speed and the density/extend.**
-
-```{r}
-## calculate vri using: est_rate * d/N
-estimate_vri <- function(data, r){
-  vri <- r * (data$people_vaccinated[length(data$people_vaccinated)]) / data$population[1]
+```{r vri-func}
+ct_model = function(df, log.y = FALSE, model = c("logis", "asymp", "linear"), model2 = "none") {
+  # cleaning
+  covid_clean = df %>% 
+    filter(str_length(iso_code) <= 3) %>% 
+    select(iso_code, location, date, people_vaccinated, population, aged_65_older, gdp_per_capita, cardiovasc_death_rate, population_density, hospital_beds_per_thousand, human_development_index, extreme_poverty, diabetes_prevalence, life_expectancy) %>% 
+    filter(people_vaccinated != 0 & !is.na(people_vaccinated)) %>% 
+    group_by(location) %>% 
+    mutate(t_days = difftime(date, min(date), units = "days") %>% as.integer())
   
-  return(vri)
-}
-```
-
-
-```{r}
-## FOR measuring goodness of fit
-RSQUARE = function(y_actual,y_predict){
-  cor(y_actual,y_predict)^2
-}
-```
-
-```{r logistic}
-# initiate r1_list, to store location, r, fit, respectively
-r1_list = list("location" = c(), "r" = c(), "fit" = c())
-vri_data <- NULL
-
-#covid_clean$location
-
-## for each country (location)
-for (loc in unique(covid_clean$location)) {
-  # subset cleaned data to one country
-  covid_subset = covid_clean %>% filter(location == loc)
+  # initiate r_list, to store location, r, fit, ... respectively
+  r_list = list("location" = c(), "r" = c(), "fit" = c(), "y.real" = c(), "date" = c(), "t_days" = c(), "vri_data" = c(), "iso_code" = c())
   
-  # try to fit model
-  fit = tryCatch(
-    # main function, fit asymptote regression model
-    expr = {
-      nls(people_vaccinated ~ SSlogis(t_days, K, xmid, scal), data = covid_subset)
-    },
-    # if error, fit linear model
-    error = function(error_message){
-      return( lm(people_vaccinated ~ t_days, data = covid_subset) )
+  ## formulae, based on selected model, people_vaccinated, and log.y
+  if (log.y) {
+    f2 = formula(log(people_vaccinated) ~ t_days)
+    # models
+    if (model == "logis") {
+      f1 = formula(log(people_vaccinated) ~ SSlogis(t_days, Asym, xmid, scal))
+    } else if (model == "asymp") {
+      f1 = formula(log(people_vaccinated) ~ SSasymp(t_days, Asym, R0, lrc))
     }
-  )
-  
-  # calculate my r value, may need transform before put into vri formula
-  if (class(fit) == "lm") {
-    r = coef(fit)["t_days"]
-  } else if (class(fit) == "nls") {
-    scal = coef(fit)["scal"]
-    r = 1/scal
+  } else {
+    f2 = formula(people_vaccinated ~ t_days)
+    # models
+    if (model == "logis") {
+      f1 = formula(people_vaccinated ~ SSlogis(t_days, Asym, xmid, scal))
+    } else if (model == "asymp") {
+      f1 = formula(people_vaccinated ~ SSasymp(t_days, Asym, R0, lrc))
+    }
   }
   
-  r1_list$location = c(r1_list$location, loc)
-  r1_list$r = c(r1_list$r, r)
-  r1_list$fit = c(r1_list$fit, list(fit))
+  ## for each country (location)
+  for (loc in unique(covid_clean$location)) {
+    # subset cleaned data to one country
+    covid_subset = covid_clean %>% filter(location == loc) %>% ungroup()
+    iso = unique(covid_subset$iso_code)
+    
+    # try to fit model
+    fit = tryCatch(
+      # main function, fit asymptote regression model
+      expr = {
+        if (model == "linear") {
+          lm(f2, data = covid_subset)
+        } else {
+          nls(f1, data = covid_subset)
+        }
+      },
+      # if error, fit linear model
+      error = function(error_message){
+        if (model2 == "linear") {
+          return( lm(f2, data = covid_subset) )
+        } else if (model2 == "none") {
+          return( NULL )
+        }
+      }
+    )
+    
+    # calculate my r value, may need transform before put into vri formula
+    if (class(fit) == "lm") {
+      r = coef(fit)["t_days"]
+    } else if (class(fit) == "nls") {
+      if (model == "logis") {scal = coef(fit)["scal"]; r = 1/scal} else
+        if (model == "asymp") {lrc = coef(fit)["lrc"]; r = exp(lrc)}
+    } else if (class(fit) == "NULL") {
+      r = NA
+    }
+    
+    # vri = r * last people_vaccinated / end population
+    last_entry = tail(covid_subset, 1)
+    vri = r * last_entry$people_vaccinated / last_entry$population
+    
+    median_data = covid_subset %>% 
+      select(-date, -t_days, -location, -iso_code, -people_vaccinated) %>% 
+      summarise(across(everything(), median, na.rm = TRUE))
+    
+    vri_data = median_data %>% 
+      mutate(iso_code = iso, location = loc, vri = vri, .before = 1)
+    
+    r_list[[1]] = c(r_list[[1]], loc)
+    r_list[[2]] = c(r_list[[2]], r)
+    r_list[[3]] = c(r_list[[3]], list(fit))
+    r_list[[4]] = c(r_list[[4]], list(covid_subset$people_vaccinated))
+    r_list[[5]] = c(r_list[[5]], list(covid_subset$date))
+    r_list[[6]] = c(r_list[[6]], list(covid_subset$t_days))
+    r_list[[7]] = c(r_list[[7]], list(vri_data))
+    r_list[[8]] = c(r_list[[8]], iso)
+  }
   
-  vri <- estimate_vri(covid_clean, r)
+  ## Measuring model fitness, residual standard error (RSE).
+  # for (i in seq_len(length(r_list$fit))) {
+  #   if (log.y) {
+  #     # residuals = real - fitted
+  #     resid = r_list$y.real[[i]] - exp(fitted(r_list$fit[[i]]))
+  #     # degrees of freedom = n - k - 1, k = number of parameters
+  #     df = summary(r_list$fit[[i]])$df[2]
+  #     r_list$rse[[i]] = (sum(resid^2)/df)^(1/2)
+  #   } else {
+  #     r_list$rse[[i]] = sigma(r_list$fit[[i]])
+  #   }
+  # }
   
+  ## Measuring model fitness, Mean Absolute Scaled Error (MASE).
+  # reference: https://people.duke.edu/~rnau/compare.htm
+  # https://www.rdocumentation.org/packages/Metrics/versions/0.1.4/topics/mase
+  for (i in seq_len(length(r_list$fit))) {
+    r_list$mase[[i]] = Metrics::mase(r_list$y.real[[i]], fitted(r_list$fit[[i]]), step_size = 1)
+  }
   
-  temp <- data.frame(location = loc, vri = vri,
-                      aged_65_older = covid[covid$location == loc, ]$aged_65_older[1],
-                      gdp_per_capita = covid[covid$location == loc, ]$gdp_per_capita[1],
-                      cardiovasc_death_rate = covid[covid$location == loc, ]$cardiovasc_death_rate[1],
-                      population_density = covid[covid$location == loc, ]$population_density[1],
-                      hospital_beds_per_thousand = covid[covid$location == loc,]$hospital_beds_per_thousand[1],
-                      human_development_index = covid[covid$location == loc, ]$human_development_index[1],
-                      extreme_poverty = covid[covid$location == loc, ]$extreme_poverty[1],
-                      diabetes_prevalence = covid[covid$location == loc, ]$diabetes_prevalence[1],
-                      life_expectancy = covid[covid$location == loc, ]$life_expectancy[1],
-                      iso_code = covid[covid$location == loc, ]$iso_code[1])
-
-
-  vri_data <- rbind(vri_data, temp)
+  return(r_list)
 }
-
-
-## Measuring model fitness, residual standard error (RSE).
-for (i in seq_len(length(r1_list$fit))) {
-  r1_list$rse[[i]] = sigma(r1_list$fit[[i]])
-}
-
-
-## Country using linear model 
-unwanted_loc <- r1_list$location[names(r1_list$r) == "t_days"]
-vri_data <- vri_data %>% filter (!(location %in% unwanted_loc))
 ```
 
 ```{r}
+# Example of use, inspect the r_list to see what's included
+r_list1 = ct_model(covid, log.y = FALSE, model = "logis")
+vri_data <- data.frame(bind_rows(r_list1$vri_data))
 head(vri_data)
+```
+
+#### Summary of VRIs
+```{r}
+### Summary of VRI
+summary(vri_data$vri)
+ggplot(vri_data,aes(x="",y=vri)) + geom_boxplot(outlier.colour="blue") + ylab("VRI") + xlab("") + ggtitle("Distribution of VRIs") 
+
 ```
 
 
@@ -190,6 +191,7 @@ corruption <- read_xlsx("CPI2020_GlobalTablesTS_210125.xlsx", sheet=1,skip=2)
 corruption <- corruption %>% select (c("ISO3", "CPI score 2020")) 
 #corruption
 
+
 happiness <- read_csv("happiness-cantril-ladder.csv")
 happiness <- happiness %>% group_by(Code) %>%
   arrange(Year) %>%
@@ -204,164 +206,102 @@ joint_data <- merge(joint_data,happiness, by.x=c("iso_code"), by.y=c("Code"))
 # GHE-INDEX
 ghs <- read_csv("2021-GHS-Index-April-2022.csv")
 ghs <- ghs %>% filter(Year == 2021) %>% select(Country,`OVERALL SCORE`)
+## adding iso code to ghs dataset
+ghs <- ghs %>% mutate(iso_code = iso.alpha(Country, 3), .before = 1)
+ghs <- ghs %>% mutate(
+  iso_code = case_when(
+    !is.na(iso_code) ~ iso_code,
+    Country == "Bosnia and Hercegovina" ~ "BIH",
+    Country == "Cabo Verde" ~ "CPV",
+    Country == "Congo (Brazzaville)" ~ "COG",
+    Country == "Congo (Democratic Republic)" ~ "COD",
+    Country == "Côte d'Ivoire" ~ "CIV",
+    Country == "eSwatini" ~ "BIH",
+    Country == "Kyrgyz Republic" ~ "KGZ",
+    Country == "São Tomé and Príncipe" ~ "STP",
+    Country == "St Kitts & Nevis" ~ "KNA",
+    Country == "St Lucia" ~ "LCA",
+    Country == "St Vincent & The Grenadines" ~ "VCT",
+    Country == "United Kingdom" ~ "GBR",
+    Country == "United States of America" ~ "USA"
+  )
+)
+#setdiff(joint_data$iso_code,ghs$iso_code)
 
-joint_data <- merge(joint_data, ghs,  by.x=c("location"), by.y=c("Country"))
-colnames(joint_data)[15] <- "GHS_score"
+joint_data <- merge(joint_data, ghs[,-2],  by.x=c("iso_code"), by.y=c("iso_code"))
+colnames(joint_data)[16] <- "GHS_score"
 joint_data
 ```
 
+#### Preprocessing
 
-#### Selecting Covariates
 
+Log transformation and min-max normalization
 ```{r}
-# Basic scatter plot
-df <- joint_data %>% filter( !is.na(population_density) # set a threshold to remove outliers:(vri < 0.08) & 
-                                    &!is.na(gdp_per_capita) &!is.na(aged_65_older)&
-                                      !is.na(extreme_poverty)&
+# take log for highly skewed variables
+vri_extra_logged = joint_data %>% select(-population) %>%
+  mutate(
+    across(.cols = c(population_density, aged_65_older, gdp_per_capita, hospital_beds_per_thousand, cardiovasc_death_rate, extreme_poverty, diabetes_prevalence),
+           ~log(.))
+  ) %>% 
+  rename_with(.cols = c(population_density, aged_65_older, gdp_per_capita, hospital_beds_per_thousand, cardiovasc_death_rate, extreme_poverty, diabetes_prevalence),
+              .fn = ~paste0("log_", .))
+
+vri_extra_logged
+
+min_max_norm <- function(x) {
+    (x - min(x,na.rm = TRUE)) / (max(x,na.rm = TRUE) - min(x,na.rm = TRUE))
+}
+
+scaled_data <- data.frame(lapply(vri_extra_logged[4:15], min_max_norm), vri = vri_extra_logged$vri)
+#scaled_data <- data.frame(lapply(joint_data[4:16], min_max_norm), vri = joint_data$vri)
+scaled_data
+
+```
+Removing NAs:
+```{r}
+scaled_data_cleaned <- scaled_data %>% filter( !is.na(vri) & !is.na(log_population_density)& 
+                                    !is.na(log_gdp_per_capita) &!is.na(log_aged_65_older)&
+                                      !is.na(log_extreme_poverty)&
                                       !is.na(human_development_index)& 
-                                      !is.na(cardiovasc_death_rate)& 
-                                      !is.na(diabetes_prevalence)&
-                                      !is.na(hospital_beds_per_thousand)) %>% 
+                                      !is.na(log_cardiovasc_death_rate)& 
+                                      #!is.na(log_diabetes_prevalence)&
+                                      !is.na(log_hospital_beds_per_thousand)) %>% 
                                       
-                            select(c(location,vri,population_density,gdp_per_capita,aged_65_older,
-                                     `CPI score 2020`,
-                                     satisfaction,extreme_poverty,human_development_index,life_expectancy,
-                                      cardiovasc_death_rate,diabetes_prevalence,
-                                      hospital_beds_per_thousand, GHS_score)) 
+                            select(c(vri,log_gdp_per_capita,log_aged_65_older,log_population_density,
+                                     CPI.score.2020,log_extreme_poverty,
+                                     satisfaction,life_expectancy,human_development_index,
+                                     log_cardiovasc_death_rate,log_diabetes_prevalence,
+                                     log_hospital_beds_per_thousand, GHS_score)) 
 
-df
-```
-
-##### Demographic factors (scatter plots)
-Variables: `population_density`, age(`aged_65_older`/`aged_70_older`), `gdp_per_capita`, 
-```{r}
-ggplot(df, aes(x=vri, y=population_density)) + geom_point() + ggtitle("Population density vs Vaccine Roll-out Index(vri)") + ylim(c(0,500))
-ggplot(df, aes(x=vri, y=gdp_per_capita)) + geom_point() + ggtitle("GDP per capita vs Vaccine Roll-out Index(vri)")
-ggplot(df, aes(x=vri, y=aged_65_older)) + geom_point() + ggtitle("Aged over 65 vs Vaccine Roll-out Index(vri)")
-```
-
-##### Social and Economic
-Variables: Stringency(`stringency_index`), trust(`share_who _trust_government`), corruption(`CPI score 2020`), happiness(`satisfaction`), `extreme_poverty`, `human_development_index`, `life_expectancy`.
-
-Remove the stringency_index as there's not enough data.
-```{r}
-#ggplot(df, aes(x=vri, y= stringency_index)) + geom_point() + ggtitle("Stringency vs Vaccine Roll-out Index(vri)")
-ggplot(df, aes(x=vri, y=`CPI score 2020`)) + geom_point() + ggtitle("Corruption vs Vaccine Roll-out Index(vri)")
-#ggplot(df, aes(x=vri, y= `Trust the national government in this country`)) + geom_point() + ggtitle("Trust in government vs Vaccine Roll-out Index(vri)")
-ggplot(df, aes(x=vri, y= satisfaction)) + geom_point() + ggtitle("Happiness vs Vaccine Roll-out Index(vri)")
-ggplot(df, aes(x=vri, y= log(extreme_poverty))) + geom_point() + ggtitle("Extreme Poverty vs Vaccine Roll-out Index(vri)") #
-ggplot(df, aes(x=vri, y= human_development_index)) + geom_point() + ggtitle("Human Development Index vs Vaccine Roll-out Index(vri)")
-ggplot(df, aes(x=vri, y= life_expectancy)) + geom_point() + ggtitle("Life Expectancy vs Vaccine Roll-out Index(vri)")
-
-```
-
-##### Health
-variables: `cardiovasc_death_rate`/`diabetes_prevalence`, smokers?
-```{r}
-ggplot(df, aes(x=vri, y= cardiovasc_death_rate)) + geom_point() + ggtitle("Cardiovasc Death Rate vs Vaccine Roll-out Index(vri)")
-ggplot(df, aes(x=vri, y= diabetes_prevalence)) + geom_point() + ggtitle("Diabetes Prevalence vs Vaccine Roll-out Index(vri)")
-#hospital_beds_per_thousand
-ggplot(df, aes(x=vri, y= hospital_beds_per_thousand)) + geom_point() + ggtitle("hospital_beds_per_thousand vs Vaccine Roll-out Index(vri)")
-ggplot(df, aes(x=vri, y= GHS_score)) + geom_point() + ggtitle("GHS vs Vaccine Roll-out Index(vri)")
-```
-
-##### Correlation Check
-```{r}
-# correlation matrix
-cor_mat <- round(cor(df %>% select(-location), method="spearman"),2)# for non-linear correlation (non-parametric)
-
-## Reorder the correlation matrix
-# Refernce: http://www.sthda.com/english/wiki/ggplot2-quick-correlation-matrix-heatmap-r-software-and-data-visualization
-
-reorder_cormat <- function(cor_mat){
-  # Use correlation between variables as distance
-  dd <- as.dist((1-cor_mat)/2)
-  hc <- hclust(dd)
-  return (cor_mat[hc$order, hc$order])
-}
-
+scaled_data_cleaned
 ```
 
 
+
+#### Selecting Social Economic Factors (Scatter plot + Heatmap)
 ```{r}
-## Plotting heatmap
-plot_heatmap <- function(cor_mat){
-  
-  cor_mat <- reorder_cormat(cor_mat)
+spearman <- cor(scaled_data_cleaned, use="pairwise.complete.obs", method="spearman")
 
-  ## Remove redundant information (taking the upper triangles values)
-  cor_mat[lower.tri(cor_mat)]<- NA
-  cor_mat <- melt(cor_mat, na.rm = TRUE)
-  
-  ggheatmap <- ggplot(cor_mat, aes(Var2, Var1, fill = value))+
- geom_tile(color = "white")+
- scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
-   midpoint = 0, limit = c(-1,1), space = "Lab", 
-    name="Spearman\nCorrelation") +
-  theme_minimal()+ # minimal theme
- theme(axis.text.x = element_text(angle = 45, vjust = 1, 
-    size = 8, hjust = 1))+
- coord_fixed()
-
-  ggheatmap + 
-geom_text(aes(Var2, Var1, label = value), color = "black", size = 3) +
-  theme(
-  axis.title.x = element_blank(),
-  axis.title.y = element_blank(),
-  panel.grid.major = element_blank(),
-  panel.border = element_blank(),
-  panel.background = element_blank(),
-  axis.ticks = element_blank(),
-  legend.justification = c(1, 0),
-  legend.position = c(0.6, 0.7),
-  legend.direction = "horizontal")+
-  guides(fill = guide_colorbar(barwidth = 7, barheight = 1,
-                title.position = "top", title.hjust = 0.5))
-
-}
-
-plot_heatmap(cor_mat)
-
+qtlcharts::iplotCorr(
+  scaled_data_cleaned,
+  reorder=TRUE,
+  corr = spearman,
+  chartOpts = list(cortitle = "Spearmnan's correlation")
+)
+```
+Remove population_density based on scatter plot and correlation heatmap
+```{r}
+scaled_data_cleaned <- scaled_data_cleaned %>% select(-log_population_density)
 ```
 
 
 #### Modelling (RF)
 
-##### Check correlation
-```{r}
-df <- df %>% select(-location)
-cor_mat <- round(cor(df,method="spearman"),2)# for non-linear correlation
-## Remove redundant information (taking the upper triangles values)
-cor_mat[lower.tri(cor_mat)]<- NA
-cor_mat <- melt(cor_mat, na.rm = TRUE)
-as.data.frame(cor_mat) %>% filter(value > 0.8 & value != 1)
-```
-
-##### Pre-processing
-```{r}
-library("sigmoid")
-zscore <- function(x) {
-  # x is a variable (col) in a dataframe
-  zscore = (x - mean(x, na.rm = TRUE)) / sd(x, na.rm = TRUE)
-  return(zscore)
-}
-min_max_norm <- function(x) {
-    (x - min(x)) / (max(x) - min(x))
-}
-df 
-scaled_data <- data.frame(lapply(df[2:13], min_max_norm), vri = df$vri)
-# UNSURE RN
-scaled_data$vri <- sigmoid(zscore(scaled_data$vri))
-scaled_data
-```
-
-
-
-
 ##### Tune models on training data with all predictors using grid search with cross-validation
 ```{r warning=FALSE}
 # hyper parameter grid search (definitely need a bit modify)
-mtry <-  seq(3, 11, by = 1)
+mtry <-  seq(2, 6, by = 1)
 num_trees <- c(100,150,200,250,300,350,400,450,500)
 
 
@@ -369,15 +309,16 @@ num_trees <- c(100,150,200,250,300,350,400,450,500)
 #control <- trainControl(method="cv", number=3, search="grid")
 grid_param <- expand.grid(.mtry=mtry)
 modellist <- list()
+set.seed(388)
 for (ntree in num_trees) {
-	set.seed(1)
 	fit <- train( vri~., 
-                      data= scaled_data, 
+                      data= scaled_data_cleaned, 
                       method='rf', 
                       tuneGrid=grid_param, 
 	                    ntree= ntree,
+	                    importance=TRUE,
                       trControl=trainControl(method='cv', 
-                        number=3) )
+                        number=5) )
 	key <- toString(ntree)
 	modellist[[key]] <- fit$finalModel
 
@@ -386,30 +327,32 @@ for (ntree in num_trees) {
 
 ## COMPARE RESULTS
 
-#lowest_mse <- 1
-#model_mse <- modellist[[1]]
+lowest_mse <- 1
+model_mse <- modellist[[1]]
 highest_r2 <- 0
 model_r2 <- modellist[[1]]
+  
 for (i in c(1:length(modellist))) {
 
-  result <- predict(modellist[[i]], newdata=scaled_data %>% select(-vri))
-  result_avg <- mean(scaled_data$vri)
-  r2 = 1 - (sum((scaled_data$vri - result)^2))/(sum((scaled_data$vri - result_avg)^2))
+  result <- predict(modellist[[i]], newdata=scaled_data_cleaned %>% select(-vri))
+  result_avg <- mean(scaled_data_cleaned$vri)
+  mse = mean((scaled_data_cleaned$vri - result)^2)
+  r2 = 1 - (sum((scaled_data_cleaned$vri - result)^2))/(sum((scaled_data_cleaned$vri - result_avg)^2))
   if (highest_r2 < r2){
      highest_r2 = r2
      model_r2 = modellist[[i]]
   }
-  # mse = min(modellist[[i]]$mse)
-  # if (lowest_mse > mse){
-  #   lowest_rmse = mse
-  #   model_mse = modellist[[i]]
-  # }
+  if (lowest_mse > mse) {
+    lowest_mse = mse
+    model_mse = modellist[[i]]
+  }
+
  
 }
-#model_mse
+model_mse
 model_r2
+lowest_mse
 highest_r2
-summary(highest_r2)
 ```
 
 ###### Calculating importance of features to the model: Handling multicollinear features by using conditional permutation
@@ -418,120 +361,35 @@ summary(highest_r2)
 
 ## https://cran.r-project.org/web/packages/permimp/vignettes/permimp-package.html
 
-set.seed(1)
-optimal_rf <- randomForest(vri ~ ., data= scaled_data, mtry = 3, replace = FALSE, 
-                         nodesize = 7, keep.forest = TRUE, keep.inbag = FALSE, ntree= 250)
+set.seed(388)
+optimal_rf <- randomForest(vri ~ ., data= scaled_data_cleaned, mtry = 2, keep.forest = TRUE, keep.inbag = FALSE, ntree= 200)
 ## compute permutation importance
-rf_permimp <- permimp(optimal_rf, progressBar = FALSE, conditional = TRUE,scaled = TRUE)
+rf_permimp <- permimp(optimal_rf, progressBar = FALSE, conditional = TRUE,scaled = TRUE, thresholdDiagnostics = TRUE,type="response")
 
 ## boxplot
 plot(rf_permimp)
 
+rf_permimp$values
 
-```
-No need to run the following code.
-======================================================================
-###### Backward Selection(RFE - recursive-feature-elimination)
-https://topepo.github.io/caret/recursive-feature-elimination.html#backwards-selection
-```{r}
-set.seed(1)
-
-subsets <- c(2:12)
-
-ctrl <- rfeControl(functions = rfFuncs, # using random forest
-                   method = "cv",
-                   number = 3, # using 3-fold cross validation
-                   verbose = FALSE)
-
-rfProfile <- rfe((scaled_data %>% select(-vri,-human_development_index)), as.matrix(scaled_data %>% select(vri)),
-                 sizes = subsets,
-                 rfeControl = ctrl)
-
-
-result <- predict(rfProfile,newdata=scaled_data %>% select(-vri))
-result_avg <- mean(scaled_data$vri)
-r2 = 1 - (sum((scaled_data$vri - result)^2))/(sum((scaled_data$vri - result_avg)^2))
-
-
-as.data.frame(predictors(rfProfile))
-rfProfile$fit
-trellis.par.set(caretTheme())
-plot(rfProfile, type = c("g", "o"))
-r2
-```
-
-
-
-```{r}
-set.seed(1)
-optimal_rf <- randomForest(vri ~ ., data= scaled_data, mtry = 4, 
-                              keep.forest = TRUE, ntree= 300)
-## compute permutation importance
-rf_permimp <- permimp(optimal_rf, progressBar = FALSE, conditional = TRUE,scaled = TRUE,thresholdDiagnostics = TRUE)
-## barplot
-plot(rf_permimp)
-
-
-rf_df <- df %>% select(vri,life_expectancy,cardiovasc_death_rate,extreme_poverty,
-                          hospital_beds_per_thousand,gdp_per_capita,`CPI score 2020`)
-colnames(rf_df)[7] <- "CPI_score_2020"
-
-rf <- randomForest(vri ~ ., 
-                data= rf_df, ntree=500,mtry=2,
-                keep.forest=FALSE, importance=TRUE, seed=3888)
-
-vimp <- varImp(rf,scale = TRUE)
-vimp <- vimp[order(vimp$Overall,decreasing = TRUE), drop = FALSE]
-vimp$var <- rownames(vimp)                  
-vimp$Overall <- round(vimp$Overall,3)
+vimp <- as.data.frame(rf_permimp$values)
+colnames(vimp)[1] <- "importance"
+vimp <- round(vimp, 4)
+vimp$var <- row.names(vimp)
+vimp
 
 options(scipen=999)
+vimp <- vimp %>%
+  arrange(desc(importance)) %>%
+  slice(1:5)
+
+
 vimp %>%
-  arrange(desc(Overall)) %>%
-  ggplot(aes(reorder(var, Overall), Overall)) +
-  geom_col() +
+  ggplot(aes(reorder(var,importance), importance)) +
+  geom_col(fill="steelblue") +
   coord_flip() +
-  ggtitle("Top important variables") +
+  theme_bw()+
+  ggtitle("Top 5 important variables") +
   xlab("Factors in order") +
   ylab("Scaled importance")
 
 ```
-
-##### Modelling Linear Regression (backwards selection using single p-value
-i.e. using drop1() from the full model.
-```{r}
-# Check strong correlated predictors
-cor_mat <- round(cor(df %>% select(-vri)),2) # for linear correlation
-cor_mat[lower.tri(cor_mat)]<- NA
-cor_mat <- melt(cor_mat, na.rm = TRUE)
-as.data.frame(cor_mat) %>% filter(value > 0.8 & value != 1)
-```
-
-
-```{r}
-# Full model (Removing non-linear trend predictors + strong correlated predictors)
-M1 = lm(vri ~ ., data = scaled_data)  #  %>% select(-extreme_poverty,-population_density,-human_development_index,-`CPI score 2020`)
-
-# Try doing backward selection
-step_back_aic = step(M1, direction = "backward", trace = FALSE)
-summary(step_back_aic)
-
-
-```
-
-
-Check assumptions
-```{r}
-library(ggfortify)
-autoplot(step_back_aic, which = 1:2) + theme_bw()
-```
-Predict
-```{r}
-predictions <- predict(step_back_aic, newdata = X_test)
-# MSE
-sum((y_test-predictions)^2) / length(y_test)
-# R squared
-as.double(cor(y_test, as.data.frame(predictions)) ^ 2)
-```
-
-
