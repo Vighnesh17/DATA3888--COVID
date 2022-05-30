@@ -150,24 +150,19 @@ ct_model = function(df, log.y = FALSE, model = c("logis", "asymp", "linear"), mo
     r_list[[8]] = c(r_list[[8]], iso)
   }
   
-  ## Measuring model fitness, residual standard error (RSE).
-  # for (i in seq_len(length(r_list$fit))) {
-  #   if (log.y) {
-  #     # residuals = real - fitted
-  #     resid = r_list$y.real[[i]] - exp(fitted(r_list$fit[[i]]))
-  #     # degrees of freedom = n - k - 1, k = number of parameters
-  #     df = summary(r_list$fit[[i]])$df[2]
-  #     r_list$rse[[i]] = (sum(resid^2)/df)^(1/2)
-  #   } else {
-  #     r_list$rse[[i]] = sigma(r_list$fit[[i]])
-  #   }
-  # }
-  
-  ## Measuring model fitness, Mean Absolute Scaled Error (MASE).
-  # reference: https://people.duke.edu/~rnau/compare.htm
-  # https://www.rdocumentation.org/packages/Metrics/versions/0.1.4/topics/mase
+  ## Measuring model fitness, root mean standard error (RMSE).
   for (i in seq_len(length(r_list$fit))) {
-    r_list$mase[[i]] = Metrics::mase(r_list$y.real[[i]], fitted(r_list$fit[[i]]), step_size = 1)
+    if ( is.null(r_list$fit[[i]]) ) {
+      r_list$rse[[i]] = NA
+    } else if (log.y) {
+      # residuals = real - fitted
+      resid = r_list$y.real[[i]] - exp(fitted(r_list$fit[[i]]))
+      # degrees of freedom = n - k - 1, k = number of parameters
+      df = summary(r_list$fit[[i]])$df[2]
+      r_list$rse[[i]] = (sum(resid^2)/df)^(1/2)
+    } else {
+      r_list$rse[[i]] = sigma(r_list$fit[[i]])
+    }
   }
   
   return(r_list)
