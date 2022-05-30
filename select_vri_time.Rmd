@@ -41,271 +41,150 @@ covid$date <- as.Date(covid$date) #, format = "%d/%m/%y")
 #head(covid_data)
 ```
 
-
-## Vaccinations progress  
-
-### Vaccine Roll-Out Index (vri) values for the countries
-
-(Reference: https://www.mdpi.com/2076-393X/10/2/194/htm)
-
-> **Estimate Vaccine Uptakes Rates r* for Countries**
-
-
-```{r}
-## NEW
-covid_clean = covid %>% 
-  filter(str_length(iso_code) <= 3) %>% 
-  select(iso_code, location, date, people_vaccinated,population) %>% 
-  remove_missing() %>%
-  filter(people_vaccinated != 0) %>% 
-  group_by(location) %>% 
-  mutate(t_days = difftime(date, min(date), units = "days") %>% as.integer())
-```
-
-```{r}
-## calculate vri using: est_rate * d/N
-estimate_vri <- function(data, r){
-  vri <- r * (data$people_vaccinated[length(data$people_vaccinated)]) / data$population[1]
+```{r vri-func}
+ct_model = function(df, log.y = FALSE, model = c("logis", "asymp", "linear"), model2 = "none") {
+  # cleaning
+  covid_clean = df %>% 
+    filter(str_length(iso_code) <= 3) %>% 
+    select(iso_code, location, date, people_vaccinated, population, aged_65_older, gdp_per_capita, cardiovasc_death_rate, population_density, hospital_beds_per_thousand, human_development_index, extreme_poverty, diabetes_prevalence, life_expectancy) %>% 
+    filter(people_vaccinated != 0 & !is.na(people_vaccinated)) %>% 
+    group_by(location) %>% 
+    mutate(t_days = difftime(date, min(date), units = "days") %>% as.integer())
   
-  return(vri)
-}
-```
-
-```{r}
-d=as.Date('2010-08-01')
-
-d %m+% months(6)
-```
-
-# The first 4 month
-```{r logy-asympreg}
-# initiate r1_list, to store location, r, fit, respectively
-r1_list = list("location" = c(), "r" = c(), "fit" = c())
-vri_data <- NULL
-
-#covid_clean$location
-
-## for each country (location)
-for (loc in unique(covid_clean$location)) {
-  # subset cleaned data to one country
-  covid_subset = covid_clean %>% filter(location == loc)
+  # initiate r_list, to store location, r, fit, ... respectively
+  r_list = list("location" = c(), "r" = c(), "fit" = c(), "y.real" = c(), "date" = c(), "t_days" = c(), "vri_data" = c(), "iso_code" = c())
   
-  
-  start <- min(covid_subset$date[!is.na(covid_subset$people_vaccinated)])
-  end <- start %m+% months(4)
-
-  print(loc)
-  print(start)
-  print(end)
-  
-  
-  
-  covid_subset <- covid_subset[start <= covid_subset$date & covid_subset$date < end, ]
-  
-  # try to fit model
-  fit = tryCatch(
-    # main function, fit asymptote regression model
-    expr = {
-      nls(people_vaccinated ~ SSlogis(t_days, K, xmid, scal), data = covid_subset)
-    },
-    # if error, fit linear model
-    error = function(error_message){
-      return( lm(log(people_vaccinated) ~ t_days, data = covid_subset) )
+  ## formulae, based on selected model, people_vaccinated, and log.y
+  if (log.y) {
+    f2 = formula(log(people_vaccinated) ~ t_days)
+    # models
+    if (model == "logis") {
+      f1 = formula(log(people_vaccinated) ~ SSlogis(t_days, Asym, xmid, scal))
+    } else if (model == "asymp") {
+      f1 = formula(log(people_vaccinated) ~ SSasymp(t_days, Asym, R0, lrc))
     }
-  )
-  
-  # calculate my r value, may need transform before put into vri formula
-  if (class(fit) == "lm") {
-    r = coef(fit)["t_days"]
-  } else if (class(fit) == "nls") {
-    scal = coef(fit)["scal"]
-    r = 1/scal
+  } else {
+    f2 = formula(people_vaccinated ~ t_days)
+    # models
+    if (model == "logis") {
+      f1 = formula(people_vaccinated ~ SSlogis(t_days, Asym, xmid, scal))
+    } else if (model == "asymp") {
+      f1 = formula(people_vaccinated ~ SSasymp(t_days, Asym, R0, lrc))
+    }
   }
   
-  r1_list$location = c(r1_list$location, loc)
-  r1_list$r = c(r1_list$r, r)
-  r1_list$fit = c(r1_list$fit, list(fit))
-  
-  vri <- estimate_vri(covid_clean, r)
-  
-  
-  temp <- data.frame(location = loc, vri4 = vri)
-
-
-  vri_data <- rbind(vri_data, temp)
-}
-
-
-## Measuring model fitness, residual standard error (RSE).
-for (i in seq_len(length(r1_list$fit))) {
-  r1_list$rse[[i]] = sigma(r1_list$fit[[i]])
-}
-
-
-## Country using linear model 
-unwanted_loc <- r1_list$location[names(r1_list$r) == "t_days"]
-vri_data <- vri_data %>% filter (!(location %in% unwanted_loc))
-```
-
-
-# 8 month
-```{r logy-asympreg}
-# initiate r1_list, to store location, r, fit, respectively
-r1_list = list("location" = c(), "r" = c(), "fit" = c())
-temp_data <- NULL
-
-#covid_clean$location
-
-## for each country (location)
-for (loc in unique(covid_clean$location)) {
-  # subset cleaned data to one country
-  covid_subset = covid_clean %>% filter(location == loc)
-  
-  start <- min(covid_subset$date[!is.na(covid_subset$people_vaccinated)])
-  start <- start %m+% months(4)
-  end <- start %m+% months(9)
-
-  covid_subset <- covid_subset[start <= covid_subset$date & covid_subset$date < end, ]
-  
-  # try to fit model
-  fit = tryCatch(
-    # main function, fit asymptote regression model
-    expr = {
-      nls(people_vaccinated ~ SSlogis(t_days, K, xmid, scal), data = covid_subset)
-    },
-    # if error, fit linear model
-    error = function(error_message){
-      # return( lm(log(people_vaccinated) ~ t_days, data = covid_subset) )
+  ## for each country (location)
+  for (loc in unique(covid_clean$location)) {
+    # subset cleaned data to one country
+    covid_subset = covid_clean %>% filter(location == loc) %>% ungroup()
+    iso = unique(covid_subset$iso_code)
+    
+    # try to fit model
+    fit = tryCatch(
+      # main function, fit asymptote regression model
+      expr = {
+        if (model == "linear") {
+          lm(f2, data = covid_subset)
+        } else {
+          nls(f1, data = covid_subset)
+        }
+      },
+      # if error, fit linear model
+      error = function(error_message){
+        if (model2 == "linear") {
+          return( lm(f2, data = covid_subset) )
+        } else if (model2 == "none") {
+          return( NULL )
+        }
+      }
+    )
+    
+    # calculate my r value, may need transform before put into vri formula
+    if (class(fit) == "lm") {
+      r = coef(fit)["t_days"]
+    } else if (class(fit) == "nls") {
+      if (model == "logis") {scal = coef(fit)["scal"]; r = 1/scal} else
+        if (model == "asymp") {lrc = coef(fit)["lrc"]; r = exp(lrc)}
+    } else if (class(fit) == "NULL") {
+      r = NA
     }
-  )
-  
-  # calculate my r value, may need transform before put into vri formula
-  if (class(fit) == "lm") {
-    r = coef(fit)["t_days"]
-  } else if (class(fit) == "nls") {
-    scal = coef(fit)["scal"]
-    r = 1/scal
+    
+    # vri = r * last people_vaccinated / end population
+    last_entry = tail(covid_subset, 1)
+    vri = r * last_entry$people_vaccinated / last_entry$population
+    
+    median_data = covid_subset %>% 
+      select(-date, -t_days, -location, -iso_code, -people_vaccinated) %>% 
+      summarise(across(everything(), median, na.rm = TRUE))
+    
+    vri_data = median_data %>% 
+      mutate(iso_code = iso, location = loc, vri = vri, .before = 1)
+    
+    r_list[[1]] = c(r_list[[1]], loc)
+    r_list[[2]] = c(r_list[[2]], r)
+    r_list[[3]] = c(r_list[[3]], list(fit))
+    r_list[[4]] = c(r_list[[4]], list(covid_subset$people_vaccinated))
+    r_list[[5]] = c(r_list[[5]], list(covid_subset$date))
+    r_list[[6]] = c(r_list[[6]], list(covid_subset$t_days))
+    r_list[[7]] = c(r_list[[7]], list(vri_data))
+    r_list[[8]] = c(r_list[[8]], iso)
   }
   
-  r1_list$location = c(r1_list$location, loc)
-  r1_list$r = c(r1_list$r, r)
-  r1_list$fit = c(r1_list$fit, list(fit))
+  ## Measuring model fitness, residual standard error (RSE).
+  # for (i in seq_len(length(r_list$fit))) {
+  #   if (log.y) {
+  #     # residuals = real - fitted
+  #     resid = r_list$y.real[[i]] - exp(fitted(r_list$fit[[i]]))
+  #     # degrees of freedom = n - k - 1, k = number of parameters
+  #     df = summary(r_list$fit[[i]])$df[2]
+  #     r_list$rse[[i]] = (sum(resid^2)/df)^(1/2)
+  #   } else {
+  #     r_list$rse[[i]] = sigma(r_list$fit[[i]])
+  #   }
+  # }
   
-  vri <- estimate_vri(covid_clean, r)
-  
-  
-  temp <- data.frame(location = loc, vri8 = vri)
-
-
-  temp_data <- rbind(temp_data, temp)
-}
-
-
-## Measuring model fitness, residual standard error (RSE).
-# for (i in seq_len(length(r1_list$fit))) {
-#   r1_list$rse[[i]] = sigma(r1_list$fit[[i]])
-# }
-# 
-# 
-# ## Country using linear model 
-# unwanted_loc <- r1_list$location[names(r1_list$r) == "t_days"]
-# temp_data <- temp_data %>% filter (!(location %in% unwanted_loc))
-
-vri_data <- merge(vri_data, temp_data, by = "location")
-```
-
-
-# Full time
-```{r logy-asympreg}
-# initiate r1_list, to store location, r, fit, respectively
-r1_list = list("location" = c(), "r" = c(), "fit" = c())
-temp_data <- NULL
-
-#covid_clean$location
-
-## for each country (location)
-for (loc in unique(covid_clean$location)) {
-  # subset cleaned data to one country
-  covid_subset = covid_clean %>% filter(location == loc)
-  
-  start <- min(covid_subset$date[!is.na(covid_subset$people_vaccinated)])
-  start <- start %m+% months(8)
-  # end <- start %m+% months(8)
-  # 
-  covid_subset <- covid_subset[start <= covid_subset$date, ]
-  
-  # try to fit model
-  fit = tryCatch(
-    # main function, fit asymptote regression model
-    expr = {
-      nls(people_vaccinated ~ SSlogis(t_days, K, xmid, scal), data = covid_subset)
-    },
-    # if error, fit linear model
-    error = function(error_message){
-      # return( lm(log(people_vaccinated) ~ t_days, data = covid_subset) )
-    }
-  )
-  
-  # calculate my r value, may need transform before put into vri formula
-  if (class(fit) == "lm") {
-    r = coef(fit)["t_days"]
-  } else if (class(fit) == "nls") {
-    scal = coef(fit)["scal"]
-    r = 1/scal
+  ## Measuring model fitness, Mean Absolute Scaled Error (MASE).
+  # reference: https://people.duke.edu/~rnau/compare.htm
+  # https://www.rdocumentation.org/packages/Metrics/versions/0.1.4/topics/mase
+  for (i in seq_len(length(r_list$fit))) {
+    r_list$mase[[i]] = Metrics::mase(r_list$y.real[[i]], fitted(r_list$fit[[i]]), step_size = 1)
   }
   
-  r1_list$location = c(r1_list$location, loc)
-  r1_list$r = c(r1_list$r, r)
-  r1_list$fit = c(r1_list$fit, list(fit))
-  
-  vri <- estimate_vri(covid_clean, r)
-  
-  
-  temp <- data.frame(location = loc, vri_f = vri)
-
-
-  temp_data <- rbind(temp_data, temp)
+  return(r_list)
 }
-
-
-## Measuring model fitness, residual standard error (RSE).
-for (i in seq_len(length(r1_list$fit))) {
-  r1_list$rse[[i]] = sigma(r1_list$fit[[i]])
-}
-
-
-## Country using linear model 
-unwanted_loc <- r1_list$location[names(r1_list$r) == "t_days"]
-temp_data <- temp_data %>% filter (!(location %in% unwanted_loc))
-
-vri_data <- merge(vri_data, temp_data, by = "location")
 ```
 
 ```{r}
-temp_data <- NULL
-for (loc in vri_data$location) {
-  temp <- data.frame(location = vri_data$location[vri_data$location == loc], 
-                     vri4 = vri_data$vri4[vri_data$location == loc], 
-                     vri8 = vri_data$vri8[vri_data$location == loc], 
-                     vrif = vri_data$vri_f[vri_data$location == loc], 
-                     aged_65_older = covid[covid$location == loc, ]$aged_65_older[1],
-                      gdp_per_capita = covid[covid$location == loc, ]$gdp_per_capita[1],
-                      cardiovasc_death_rate = covid[covid$location == loc, ]$cardiovasc_death_rate[1],
-                      population_density = covid[covid$location == loc, ]$population_density[1],
-                      hospital_beds_per_thousand = covid[covid$location == loc,]$hospital_beds_per_thousand[1],
-                      human_development_index = covid[covid$location == loc, ]$human_development_index[1],
-                      extreme_poverty = covid[covid$location == loc, ]$extreme_poverty[1],
-                      diabetes_prevalence = covid[covid$location == loc, ]$diabetes_prevalence[1],
-                      life_expectancy = covid[covid$location == loc, ]$life_expectancy[1],
-                      iso_code = covid[covid$location == loc, ]$iso_code[1])
-  temp_data <- rbind(temp_data, temp)
-}
+start <- min(covid$date[!is.na(covid$people_vaccinated)])
+end <- start %m+% months(4)
 
+r_list4 = ct_model(covid[start <= covid$date & covid$date < end, ], log.y = FALSE, model = "logis")
+temp_data <- data.frame(bind_rows(r_list4$vri_data))
+temp_data <- data.frame(vri4 = temp_data$vri, temp_data %>% select(-vri))
 vri_data <- temp_data
+
+
+start <- min(covid$date[!is.na(covid$people_vaccinated)])
+start <- start %m+% months(4)
+end <- start %m+% months(8)
+
+r_list8 = ct_model(covid[start <= covid$date & covid$date < end, ], log.y = FALSE, model = "logis")
+temp_data <- data.frame(bind_rows(r_list8$vri_data))
+temp_data <- data.frame(vri8 = temp_data$vri, location = temp_data$location)
+vri_data <- merge(vri_data, temp_data, by = "location")
+
+start <- min(covid$date[!is.na(covid$people_vaccinated)])
+start <- start %m+% months(8)
+
+r_listf = ct_model(covid[start <= covid$date & covid$date < end, ], log.y = FALSE, model = "logis")
+temp_data <- data.frame(bind_rows(r_listf$vri_data))
+temp_data <- data.frame(vrif = temp_data$vri, location = temp_data$location)
+vri_data <- merge(vri_data, temp_data, by = "location")
+
+# Example of use, inspect the r_list to see what's included
+
+head(vri_data)
 ```
-
-
-
 
 ```{r}
 corruption <- read_xlsx("data/CPI2020_GlobalTablesTS_210125.xlsx", sheet=1,skip=2)
@@ -326,61 +205,77 @@ joint_data <- merge(joint_data,happiness, by.x=c("iso_code"), by.y=c("Code"))
 # GHE-INDEX
 ghs <- read_csv("data/2021-GHS-Index-April-2022.csv")
 ghs <- ghs %>% filter(Year == 2021) %>% select(Country,`OVERALL SCORE`)
+## adding iso code to ghs dataset
+ghs <- ghs %>% mutate(iso_code = iso.alpha(Country, 3), .before = 1)
+ghs <- ghs %>% mutate(
+  iso_code = case_when(
+    !is.na(iso_code) ~ iso_code,
+    Country == "Bosnia and Hercegovina" ~ "BIH",
+    Country == "Cabo Verde" ~ "CPV",
+    Country == "Congo (Brazzaville)" ~ "COG",
+    Country == "Congo (Democratic Republic)" ~ "COD",
+    Country == "Côte d'Ivoire" ~ "CIV",
+    Country == "eSwatini" ~ "BIH",
+    Country == "Kyrgyz Republic" ~ "KGZ",
+    Country == "São Tomé and Príncipe" ~ "STP",
+    Country == "St Kitts & Nevis" ~ "KNA",
+    Country == "St Lucia" ~ "LCA",
+    Country == "St Vincent & The Grenadines" ~ "VCT",
+    Country == "United Kingdom" ~ "GBR",
+    Country == "United States of America" ~ "USA"
+  )
+)
+#setdiff(joint_data$iso_code,ghs$iso_code)
 
-joint_data <- merge(joint_data, ghs,  by.x=c("location"), by.y=c("Country"))
-colnames(joint_data)[17] <- "GHS_score"
+joint_data <- merge(joint_data, ghs[,-2],  by.x=c("iso_code"), by.y=c("iso_code"))
+colnames(joint_data)[18] <- "GHS_score"
 joint_data
 ```
 
+
+#### Preprocessing
+
+
+Log transformation and min-max normalization
 ```{r}
-# Basic scatter plot
-df <- joint_data %>% filter(!is.na(population_density) # set a threshold to remove outliers:
-                                    &!is.na(gdp_per_capita) &!is.na(aged_65_older)&
-                                      !is.na(extreme_poverty)&
-                                      !is.na(human_development_index)& 
-                                      !is.na(cardiovasc_death_rate)& 
-                                      !is.na(diabetes_prevalence)&
-                                      !is.na(hospital_beds_per_thousand)) %>% 
-                                      
-                            select(c(location,
-                                     vri4,
-                                     vri8,
-                                     vrif,
-                                     population_density,
-                                     gdp_per_capita,aged_65_older,
-                                     `CPI score 2020`,  
-                                     satisfaction,
-                                     extreme_poverty,
-                                     human_development_index,
-                                     life_expectancy,
-                                      cardiovasc_death_rate,
-                                     diabetes_prevalence,
-                                      hospital_beds_per_thousand, 
-                                     GHS_score))    
+# take log for highly skewed variables
+vri_extra_logged = joint_data %>% select(-population) %>%
+  mutate(
+    across(.cols = c(population_density, aged_65_older, gdp_per_capita, hospital_beds_per_thousand, cardiovasc_death_rate, extreme_poverty, diabetes_prevalence),
+           ~log(.))
+  ) %>% 
+  rename_with(.cols = c(population_density, aged_65_older, gdp_per_capita, hospital_beds_per_thousand, cardiovasc_death_rate, extreme_poverty, diabetes_prevalence),
+              .fn = ~paste0("log_", .))
 
-df
-```
-
-
-```{r}
-library(sigmoid)
-zscore <- function(x) {
-  # x is a variable (col) in a dataframe
-  zscore = (x - mean(x, na.rm = TRUE)) / sd(x, na.rm = TRUE)
-  return(zscore)
-}
+vri_extra_logged
 
 min_max_norm <- function(x) {
-    (x - min(x)) / (max(x) - min(x))
+    (x - min(x,na.rm = TRUE)) / (max(x,na.rm = TRUE) - min(x,na.rm = TRUE))
 }
 
-df <- df %>% filter(vri < 0.01)
-#df
-scaled_data <- data.frame(vri4 = df$vri4, vri8 = df$vri8, vrif = df$vrif, lapply(df %>% select(-location, -vri4, -vri8, -vrif), min_max_norm))
-# UNSURE RN
-scaled_data$vri4 <- sigmoid(zscore(scaled_data$vri4))
-scaled_data$vri8 <- sigmoid(zscore(scaled_data$vri8))
-scaled_data$vrif <- sigmoid(zscore(scaled_data$vrif))
+scaled_data <- data.frame(lapply(vri_extra_logged %>% select(-iso_code, -location, -vri4, -vri8, -vrif), min_max_norm), vri4 = vri_extra_logged$vri4, vri8 = vri_extra_logged$vri8, vrif = vri_extra_logged$vrif)
+# #scaled_data <- data.frame(lapply(joint_data[4:16], min_max_norm), vri = joint_data$vri)
+scaled_data
+
+```
+
+Removing NAs:
+```{r}
+scaled_data_cleaned <- scaled_data %>% filter(!is.na(vri4) &
+                                                !is.na(vri8) &
+                                                !is.na(vrif) &
+                                                !is.na(log_population_density) &
+                                                !is.na(log_gdp_per_capita) &
+                                                !is.na(log_aged_65_older)&
+                                                !is.na(log_extreme_poverty)&
+                                                !is.na(human_development_index)&
+                                                !is.na(log_cardiovasc_death_rate)&
+                                                !is.na(log_hospital_beds_per_thousand)) %>%
+  select(c(vri4, vri8, vrif, log_gdp_per_capita,log_aged_65_older,log_population_density,CPI.score.2020,
+           log_extreme_poverty,satisfaction,life_expectancy,human_development_index,
+           log_cardiovasc_death_rate,log_diabetes_prevalence,log_hospital_beds_per_thousand, GHS_score)) 
+
+scaled_data_cleaned
 ```
 
 
@@ -397,7 +292,7 @@ grid_param <- expand.grid(.mtry=mtry)
 modellist <- list()
 for (ntree in num_trees) {
 	fit <- train( vri4~., 
-                      data= scaled_data %>% select(-vri8, -vrif), 
+                      data= scaled_data_cleaned %>% select(-vri8, -vrif), 
                       method='rf', 
                       tuneGrid=grid_param, 
 	                    ntree= ntree,
@@ -411,28 +306,31 @@ for (ntree in num_trees) {
 
 ## COMPARE RESULTS
 
-#lowest_mse <- 1
-#model_mse <- modellist[[1]]
+lowest_mse <- 1
+model_mse <- modellist[[1]]
 highest_r2 <- 0
 model_r2 <- modellist[[1]]
+
 for (i in c(1:length(modellist))) {
 
-  result <- predict(modellist[[i]], newdata=scaled_data%>% select(-vri4, -vri8, -vrif))
-  result_avg <- mean(scaled_data$vri4)
-  r2 = 1 - (sum((scaled_data$vri4 - result)^2))/(sum((scaled_data$vri4 - result_avg)^2))
+  result <- predict(modellist[[i]], newdata=scaled_data_cleaned %>% select(-vri4, -vri8, -vrif))
+  result_avg <- mean(scaled_data_cleaned$vri4)
+  mse = mean((scaled_data_cleaned$vri4 - result)^2)
+  r2 = 1 - (sum((scaled_data_cleaned$vri4 - result)^2))/(sum((scaled_data_cleaned$vri4 - result_avg)^2))
   if (highest_r2 < r2){
      highest_r2 = r2
      model_r2 = modellist[[i]]
   }
-  # mse = min(modellist[[i]]$mse)
-  # if (lowest_mse > mse){
-  #   lowest_rmse = mse
-  #   model_mse = modellist[[i]]
-  # }
+  if (lowest_mse > mse) {
+    lowest_mse = mse
+    model_mse = modellist[[i]]
+  }
  
 }
-#model_mse
-model_r2 
+
+model_mse
+model_r2
+lowest_mse
 highest_r2
 
 ```
@@ -449,7 +347,7 @@ grid_param <- expand.grid(.mtry=mtry)
 modellist <- list()
 for (ntree in num_trees) {
 	fit <- train( vri8~., 
-                      data= scaled_data %>% select(-vri4, -vrif), 
+                      data= scaled_data_cleaned %>% select(-vri4, -vrif), 
                       method='rf', 
                       tuneGrid=grid_param, 
 	                    ntree= ntree,
@@ -463,28 +361,33 @@ for (ntree in num_trees) {
 
 ## COMPARE RESULTS
 
-#lowest_mse <- 1
-#model_mse <- modellist[[1]]
+lowest_mse <- 1
+model_mse <- modellist[[1]]
 highest_r2 <- 0
 model_r2 <- modellist[[1]]
+highest_r2 <- 0
+model_r2 <- modellist[[1]]
+
 for (i in c(1:length(modellist))) {
 
-  result <- predict(modellist[[i]], newdata=scaled_data%>% select(-vri4, -vri8, -vrif))
-  result_avg <- mean(scaled_data$vri8)
-  r2 = 1 - (sum((scaled_data$vri8 - result)^2))/(sum((scaled_data$vri8 - result_avg)^2))
+  result <- predict(modellist[[i]], newdata=scaled_data_cleaned %>% select(-vri4, -vri8, -vrif))
+  result_avg <- mean(scaled_data_cleaned$vri8)
+  mse = mean((scaled_data_cleaned$vri8 - result)^2)
+  r2 = 1 - (sum((scaled_data_cleaned$vri8 - result)^2))/(sum((scaled_data_cleaned$vri8 - result_avg)^2))
   if (highest_r2 < r2){
      highest_r2 = r2
      model_r2 = modellist[[i]]
   }
-  # mse = min(modellist[[i]]$mse)
-  # if (lowest_mse > mse){
-  #   lowest_rmse = mse
-  #   model_mse = modellist[[i]]
-  # }
+  if (lowest_mse > mse) {
+    lowest_mse = mse
+    model_mse = modellist[[i]]
+  }
  
 }
-#model_mse
-model_r2 
+
+model_mse
+model_r2
+lowest_mse
 highest_r2
 
 ```
@@ -503,7 +406,7 @@ grid_param <- expand.grid(.mtry=mtry)
 modellist <- list()
 for (ntree in num_trees) {
 	fit <- train( vrif~., 
-                      data= scaled_data %>% select(-vri8, -vri4), 
+                      data= scaled_data_cleaned %>% select(-vri8, -vri4), 
                       method='rf', 
                       tuneGrid=grid_param, 
 	                    ntree= ntree,
@@ -517,121 +420,36 @@ for (ntree in num_trees) {
 
 ## COMPARE RESULTS
 
-#lowest_mse <- 1
-#model_mse <- modellist[[1]]
+lowest_mse <- 1
+model_mse <- modellist[[1]]
 highest_r2 <- 0
 model_r2 <- modellist[[1]]
+highest_r2 <- 0
+model_r2 <- modellist[[1]]
+
 for (i in c(1:length(modellist))) {
 
-  result <- predict(modellist[[i]], newdata=scaled_data%>% select(-vri4, -vri8, -vrif))
-  result_avg <- mean(scaled_data$vrif)
-  r2 = 1 - (sum((scaled_data$vrif - result)^2))/(sum((scaled_data$vrif - result_avg)^2))
+  result <- predict(modellist[[i]], newdata=scaled_data_cleaned %>% select(-vri4, -vri8, -vrif))
+  result_avg <- mean(scaled_data_cleaned$vrif)
+  mse = mean((scaled_data_cleaned$vrif - result)^2)
+  r2 = 1 - (sum((scaled_data_cleaned$vrif - result)^2))/(sum((scaled_data_cleaned$vrif - result_avg)^2))
   if (highest_r2 < r2){
      highest_r2 = r2
      model_r2 = modellist[[i]]
   }
-  # mse = min(modellist[[i]]$mse)
-  # if (lowest_mse > mse){
-  #   lowest_rmse = mse
-  #   model_mse = modellist[[i]]
-  # }
+  if (lowest_mse > mse) {
+    lowest_mse = mse
+    model_mse = modellist[[i]]
+  }
  
 }
-#model_mse
-model_r2 
+
+model_mse
+model_r2
+lowest_mse
 highest_r2
 
 ```
-
-```{r}
-high4 <- quantile(scaled_data$vri4)[4]
-
-high8 <- quantile(scaled_data$vri8)[4]
-
-highf <- quantile(scaled_data$vrif)[4]
-
-```
-
-
-```{r}
-scaled_data$label4 <- ifelse(scaled_data$vri4 < high4 , 0, 1)
-
-scaled_data$label8 <- ifelse(scaled_data$vri8 < high8 , 0, 1)
-
-scaled_data$labelf <- ifelse(scaled_data$vrif < highf , 0, 1)
-```
-
-
-```{r}
-set.seed(3888)
-
-X = scaled_data %>% select(-vri4, -label4, -vri8, -label8, -vrif, -labelf)
-y4 = scaled_data$label4
-y8 = scaled_data$label8
-yf = scaled_data$labelf
-
-cvK <- 5  # number of CV folds
-cv_acc5_50times_svm4 = cv_acc5_svm4 = cv_acc5_50times_rf4 = cv_acc5_rf4 = c()
-cv_acc5_50times_svm8 = cv_acc5_svm8 = cv_acc5_50times_rf8 = cv_acc5_rf8 = c()
-cv_acc5_50times_svmf = cv_acc5_svmf = cv_acc5_50times_rff = cv_acc5_rff = c()
-
-n_sim = 50 ## number of repeats
-for (i in 1:n_sim) {
-
-  cvSets <- cvTools::cvFolds(nrow(X), cvK)  # permute all the data, into 5 folds
-  cv_svm <- c()
-  
-  for (j in 1:cvK) {
-    test_id = cvSets$subsets[cvSets$which == j]
-    X_test = X[test_id, ]
-    X_train = X[-test_id, ]
-    y4_test = y4[test_id]
-    y4_train = y4[-test_id]
-    y8_test = y8[test_id]
-    y8_train = y8[-test_id]
-    yf_test = yf[test_id]
-    yf_train = yf[-test_id]
-    
-    ## SVM
-    svm_res4 <- e1071::svm(x = X_train, y = as.factor(y4_train))
-    fit4 <- predict(svm_res4, X_test)
-    
-    svm_res8 <- e1071::svm(x = X_train, y = as.factor(y8_train))
-    fit8 <- predict(svm_res8, X_test)
-    
-    svm_resf <- e1071::svm(x = X_train, y = as.factor(yf_train))
-    fitf <- predict(svm_resf, X_test)
-    
-    cv_acc5_svm4[j] = mean(fit4 == y4_test)
-    cv_acc5_svm8[j] = mean(fit8 == y8_test)
-    cv_acc5_svmf[j] = mean(fitf == yf_test)
-    
-    ## RF
-    # rf <- randomForest(x = X_train, y = as.factor(y_train))
-    # rf <- predict(rf, X_test)
-    # 
-    # cv_acc5_rf4[j] = mean(rf == y4_test)
-    # cv_acc5_rf8[j] = mean(rf == y8_test)
-    # cv_acc5_rff[j] = mean(rf == yf_test)
-  }
-  
-  cv_acc5_50times_svm4 <- append(cv_acc5_50times_svm4, mean(cv_acc5_svm4))
-  cv_acc5_50times_svm8 <- append(cv_acc5_50times_svm8, mean(cv_acc5_svm8))
-  cv_acc5_50times_svmf <- append(cv_acc5_50times_svmf, mean(cv_acc5_svmf))
-  
-  # cv_acc5_50times_rf4 <- append(cv_acc5_50times_rf4, mean(cv_acc5_rf4))
-  # cv_acc5_50times_rf8 <- append(cv_acc5_50times_rf8, mean(cv_acc5_rf8))
-  # cv_acc5_50times_rff <- append(cv_acc5_50times_rff, mean(cv_acc5_rff))
-} ## end for
-
-boxplot(cv_acc5_50times_svm4)
-boxplot(cv_acc5_50times_svm8)
-boxplot(cv_acc5_50times_svmf)
-# boxplot(cv_acc5_50times_rf4)
-# boxplot(cv_acc5_50times_rf8)
-# boxplot(cv_acc5_50times_rff)
-```
-
 
 
 
