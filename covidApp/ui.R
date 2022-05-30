@@ -83,11 +83,11 @@ shinyUI(
                                type = "tabs",
                                tabPanel(
                                    "Vaccination trend",
-                                   selectInput("model_dropdown",
-                                               label = "Regression model to fit",
-                                               choices = c("Logistic Regression",
-                                                           "Asymptotic Regression"),
-                                               selected = "Logistic Regression"),
+                                   # selectInput("model_dropdown",
+                                   #             label = "Regression model to fit",
+                                   #             choices = c("Logistic Regression",
+                                   #                         "Asymptotic Regression"),
+                                   #             selected = "Logistic Regression"),
                                    dygraphOutput("timePlot_click")
                                ),
                                tabPanel(

@@ -59,9 +59,12 @@ loc_all = covid_data %>%
   select(location) %>% 
   distinct()
 
+
+# VRI ---------------------------------------------------------------------
+
 ## VRI calculation
 # function to find r and vri, data cleaning included in function
-ct_model = function(df, log.y = FALSE, model = c("logis", "asymp", "linear")) {
+ct_model = function(df, log.y = FALSE, model = c("logis", "asymp", "linear"), model2 = "none") {
   # cleaning
   covid_clean = df %>% 
     filter(str_length(iso_code) <= 3) %>% 
@@ -110,7 +113,11 @@ ct_model = function(df, log.y = FALSE, model = c("logis", "asymp", "linear")) {
       },
       # if error, fit linear model
       error = function(error_message){
-        return( lm(f2, data = covid_subset) )
+        if (model2 == "linear") {
+          return( lm(f2, data = covid_subset) )
+        } else if (model2 == "none") {
+          return( NULL )
+        }
       }
     )
     

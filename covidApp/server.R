@@ -134,6 +134,7 @@ shinyServer(function(input, output) {
     ## temporary
     output$inputEvents <- renderPrint({reactiveValuesToList(input)})
     
+    ## relate country selection (drop-down) to map click
     observeEvent(input$covid_map_shape_click, {
         if (input$covid_map_shape_click$group == "VRI Overlay") {
             selected_country = countries$ADMIN[countries$ADM0_A3 == input$covid_map_shape_click$id]
@@ -146,6 +147,7 @@ shinyServer(function(input, output) {
                              selected = selected_country)
     })
     
+    ## VRI table
     output$vri_dtable <- renderDT({
         countries@data %>% select(ADMIN, vri_scaled) %>% 
             filter(!is.na(vri_scaled)) %>% 
@@ -156,39 +158,20 @@ shinyServer(function(input, output) {
     })
     
     click_iso = reactive({
-        # req(input$covid_map_groups)
-
-        # if (input$covid_map_shape_click$group == "VRI Overlay") {
-        #     input$covid_map_shape_click$id
-        # } else if (input$covid_map_shape_click$group == "Time Lag Overlay") {
-        #     countries$ADM0_A3[countries$ADMIN == input$covid_map_shape_click$id]
-        # }
         countries$ADM0_A3[countries$ADMIN == input$select_country]
     })
     
+    # country name as in countries geo dataset
     click_countryname = reactive({
-        # req(input$covid_map_groups)
-        # 
-        # if (input$covid_map_shape_click$group == "VRI Overlay") {
-        #     countries$ADMIN[countries$ADM0_A3 == input$covid_map_shape_click$id]
-        # } else if (input$covid_map_shape_click$group == "Time Lag Overlay") {
-        #     input$covid_map_shape_click$id
-        # }
         input$select_country
     })
     
+    # country name as in covid dataset
     click_countryname_location = reactive({
-        # req(input$covid_map_groups)
-        # 
-        # if (input$covid_map_shape_click$group == "VRI Overlay") {
-        #     countries$location[countries$ADM0_A3 == input$covid_map_shape_click$id]
-        # } else if (input$covid_map_shape_click$group == "Time Lag Overlay") {
-        #     countries$location[countries$ADMIN == input$covid_map_shape_click$id]
-        # }
         countries$location[countries$ADMIN == input$select_country]
     })
     
-    ## the time series plot under the map, reactive to click on map
+    ## the time series plot to show r fit
     logistic_timePlot <- reactive({
         # validate that user input, to avoid error message if nothing is passed on
         validate(
@@ -216,39 +199,9 @@ shinyServer(function(input, output) {
             dyHighlight()
     })
     
-    asymptotic_timePlot <- reactive({
-        # validate that user input, to avoid error message if nothing is passed on
-        validate(
-            need(input$select_country, "Please select/click on a country.")
-        )
-        
-        iso = click_iso()
-        country_name = click_countryname()
-        validate(
-            need( (iso %in% r_list2$iso_code), paste0("There was no vaccination data for ",country_name,".") )
-        )
-        
-        idx = which(r_list2$iso_code == iso)
-        
-        # create time series
-        subset.xts = xts(cbind( log(r_list2$y.real[[idx]]), fitted(r_list2$fit[[idx]]) ), 
-                         order.by = r_list2$date[[idx]])
-        names(subset.xts) = c("Real", "Fitted")
-        
-        # time series plot of var vs time (time series)
-        subset.xts %>% 
-            dygraph(main = paste0("People Vaccinated Log-scaled Trend (",country_name,")")) %>% 
-            dySeries("Fitted", color = "red", strokePattern = "dashed") %>% 
-            dyRangeSelector() %>% 
-            dyHighlight()
-    })
-    
+    # render time series plot under map, right panel
     output$timePlot_click <- renderDygraph({
-        if (input$model_dropdown == "Logistic Regression") {
-            logistic_timePlot()
-        } else {
-            asymptotic_timePlot()
-        }
+        logistic_timePlot()
     })
     
     ## barplot? for vaccine rollout speed, each policy stage
@@ -347,7 +300,7 @@ shinyServer(function(input, output) {
             dyHighlight()
     })
     
-    ## time lag table value for selected country, below time plot
+    ## time lag value (in table) for selected country, above time plot
     output$timeLag_value <- renderTable({
         # validate user input, to avoid error message if nothing is passed on
         validate(
