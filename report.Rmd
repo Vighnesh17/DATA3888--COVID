@@ -31,12 +31,24 @@ library(tidyverse)
 library(kableExtra)
 library(DT)
 library(tidyr)
-library(dplyr)
-library(ggplot2)
 library(plotly)
-library(permimp)
+library(readxl)
+library(tibble)
+library(ggthemes)
 
-source("data/ct_model.R")
+library(viridis) # Color gradients
+library(lubridate)
+library(qtlcharts) # Interactive scatter plots 
+
+library(randomForest) 
+library(ranger)       # a faster implementation of randomForest
+library(caret)        # performe many machine learning models
+library(broom)  # try: `install.packages("backports")` if diretly installing broom gives an error
+
+library(reshape2) # to use melt()
+
+library(deSolve)
+library(permimp) # for calculating conditional importance in a speedy way
 ```
 
 # Guide for RMarkdown report (remove for final report)
@@ -122,16 +134,19 @@ covid_data$date = ymd(covid_data$date)
 policy = read.csv("data/covid-vaccination-policy.csv")
 policy$Day = ymd(policy$Day)
 
-policy$vaccination_policy = as.factor(policy$vaccination_policy)
+
 happiness = read.csv("data/happiness-cantril-ladder.csv")
 ghs = read.csv("data/2021-GHS-Index-April-2022.csv")
 corruption = read.csv("data/CPI2020_GlobalTablesTS_210125.xlsx")
+
+source("data/ct_model.R")
 ```
 
 
 
 # Methods
 
+## Time lag between 1st and 2nd dose {#time-lag}
 ```{r}
 # smoother function, returns smoothed column
 
@@ -270,13 +285,93 @@ colnames(total_lag) = c("LagType", "Lag: Euclidean distance", "LagType", "Lag: M
 
 
 
-## Time lag between 1st and 2nd dose {#time-lag}
-
-
 ## Vaccine rollout index (VRI) and variable importance {#vri}
 
+#### Exploration
+```{r}
+countries = c("United States", "India", "Brazil", "France", "United Kingdom", "Russia", 
+              "Turkey", "Italy", "Germany", "Spain", "Argentina",
+                "Iran", "Colombia", "Poland", 'Mexico', "Netherlands", 
+              "Indonesia", "Ukraine", "South Africa", "Philippines", "Peru", "Belgium",
+                "Czechia", "Japan", "Iran")
 
-## Vaccine uptake and availability {#availability}
+policy_data <- covid_data %>% 
+  filter(location %in% countries)
+
+policy <- policy %>% filter(Entity %in% countries)
+
+policy_data <- policy_data%>% 
+  select(iso_code, continent, location, date,new_people_vaccinated_smoothed_per_hundred,  new_people_vaccinated_smoothed, new_vaccinations, new_vaccinations_smoothed, new_vaccinations_smoothed_per_million, population, people_vaccinated)
+
+policy_data <- merge(policy_data, policy, by.x = c('iso_code', "date", "location"), by.y = c('Code', 'Day', "Entity"))
+```
+
+```{r}
+get_slope <- function(country_data, country_policy, country) {
+  i = 1
+  country_slope <- data.frame(policy = as.factor(1:5), speed = rep(0, 5), country = rep(country, 5))
+  
+  while (i <= length(country_policy$vaccination_policy)) {
+    
+    current_policy = country_policy$vaccination_policy[i]
+    
+    if (current_policy > 0 & !is.na(country_policy$people_vaccinated[country_policy$vaccination_policy == current_policy])) {
+      temp_people <- country_data$people_vaccinated[country_data$vaccination_policy == current_policy & !is.na(country_data$people_vaccinated)] / country_data$population[1]
+      
+      temp_index <- 1:length(temp_people)
+      
+      if (length(temp_index) > 1) {
+        # Linear model
+        mod <- lm(temp_people ~ temp_index)
+        
+        # Extract and store the slope
+        country_slope$speed[country_slope$policy == current_policy] <- summary(mod)$coefficients[2,1]
+      } else {
+        # Some countries only have a policy for 1 day -> treat the slope as 0
+        country_slope$speed[country_slope$policy == current_policy] <- 0
+      }
+      
+    } 
+    
+    i <- i + 1
+    
+  }
+  
+  return(country_slope)
+}
+```
+
+```{r}
+country_slope = NULL
+
+for (country in countries) {
+  country_data <- policy_data[policy_data$location == country, ]
+  
+  country_policy <- country_data[!is.na(country_data$people_vaccinated), ] %>%
+    group_by(vaccination_policy) %>%
+    arrange(date) %>%
+    slice(1L) %>%
+    select(iso_code, location, date, vaccination_policy, new_vaccinations_smoothed, population, people_vaccinated)
+
+  temp_slope <- get_slope(country_data, country_policy, country)
+
+  country_slope <- rbind(country_slope, temp_slope)
+}
+
+
+global <- ggplot(data = country_slope, aes(x = country, y = speed, fill = as.factor(policy))) + 
+  geom_bar(stat="identity", position=position_dodge()) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + 
+  scale_y_sqrt() + 
+  ggtitle("All countries") + 
+  xlab("Countries") + 
+  ylab("Slope") + 
+  labs(fill = "Avalability stage")
+
+global
+```
+
+#### VRI
 
 
 # Results
