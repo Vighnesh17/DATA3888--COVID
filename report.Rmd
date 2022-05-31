@@ -23,7 +23,8 @@ knitr::opts_chunk$set(
   message = FALSE,
   warning = FALSE,
   fig.align = "center",
-  fig.cap = ""
+  fig.cap = "",
+  cache = TRUE
 )
 ```
 
