@@ -34,6 +34,7 @@ library(tidyr)
 library(dplyr)
 library(ggplot2)
 library(plotly)
+library(permimp)
 
 source("data/ct_model.R")
 ```
