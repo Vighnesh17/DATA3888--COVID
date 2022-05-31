@@ -364,7 +364,7 @@ highest_r2
 set.seed(388)
 optimal_rf <- randomForest(vri ~ ., data= scaled_data_cleaned, mtry = 2, keep.forest = TRUE, keep.inbag = FALSE, ntree= 200)
 ## compute permutation importance
-rf_permimp <- permimp(optimal_rf, progressBar = FALSE, conditional = TRUE,scaled = TRUE, thresholdDiagnostics = TRUE,type="response")
+rf_permimp <- permimp(optimal_rf, progressBar = FALSE, conditional = TRUE,scaled = TRUE, thresholdDiagnostics = TRUE,type="response",do_check = FALSE)
 
 ## boxplot
 plot(rf_permimp)
