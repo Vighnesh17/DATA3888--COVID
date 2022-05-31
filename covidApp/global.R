@@ -121,12 +121,21 @@ ct_model = function(df, log.y = FALSE, model = c("logis", "asymp", "linear"), mo
       }
     )
     
-    # calculate my r value, may need transform before put into vri formula
-    if (class(fit) == "lm") {
+    # calculate my r value, cannot compare between different models
+    if (class(fit) == "lm") {    # if fit is linear 
       r = coef(fit)["t_days"]
-    } else if (class(fit) == "nls") {
-      if (model == "logis") {scal = coef(fit)["scal"]; r = 1/scal} else
-        if (model == "asymp") {lrc = coef(fit)["lrc"]; r = exp(lrc)}
+    } else if (class(fit) == "nls") {    # if fit is non-linear
+      
+      # if fit is logistic, r = 1/scal
+      if (model == "logis") { scal = coef(fit)["scal"]
+      r = 1/scal
+      # if fit is asymptotic, r = e^lrc
+      } else if (model == "asymp") { lrc = coef(fit)["lrc"]
+      r = exp(lrc)
+      }
+      
+    } else if (class(fit) == "NULL") {    # if fit is NULL (model2="none")
+      r = NA
     }
     
     # vri = r * last people_vaccinated / end population
@@ -169,14 +178,9 @@ ct_model = function(df, log.y = FALSE, model = c("logis", "asymp", "linear"), mo
 }
 
 r_list = ct_model(covid_data, log.y = FALSE, model = "logis")
-r_list2 = ct_model(covid_data, log.y = TRUE, model = "asymp")
 
 # collect all countries
-vri_data = bind_rows(r_list$vri_data) %>% 
-  bind_cols(r = r_list$r, 
-            r.model = ifelse(names(r_list$r) == "t_days", "lm", "nls"))
-# filter out countries with linear models
-vri_data = vri_data %>% filter(r.model == "nls")
+vri_data = bind_rows(r_list$vri_data) %>% bind_cols(r = r_list$r)
 
 # scale vri?
 vri_data$vri_scaled = sigmoid::sigmoid(vri_data$vri, SoftMax = TRUE)
