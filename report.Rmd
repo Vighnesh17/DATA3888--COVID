@@ -34,8 +34,6 @@ library(tidyr)
 library(dplyr)
 library(ggplot2)
 library(plotly)
-
-<<<<<<< HEAD
 library(readxl)
 library(tibble)
 library(ggthemes)
@@ -139,7 +137,7 @@ covid_data$date = ymd(covid_data$date)
 policy = read.csv("data/covid-vaccination-policy.csv")
 policy$Day = ymd(policy$Day)
 
-policy$vaccination_policy = as.factor(policy$vaccination_policy)
+
 happiness = read.csv("data/happiness-cantril-ladder.csv")
 ghs = read.csv("data/2021-GHS-Index-April-2022.csv")
 corruption = read.csv("data/CPI2020_GlobalTablesTS_210125.xlsx")
@@ -304,7 +302,6 @@ policy_data <- covid_data %>%
   filter(location %in% countries)
 
 policy <- policy %>% filter(Entity %in% countries)
-policy$vaccination_policy <- as.factor(policy$vaccination_policy)
 
 policy_data <- policy_data%>% 
   select(iso_code, continent, location, date,new_people_vaccinated_smoothed_per_hundred,  new_people_vaccinated_smoothed, new_vaccinations, new_vaccinations_smoothed, new_vaccinations_smoothed_per_million, population, people_vaccinated)
@@ -318,10 +315,8 @@ get_slope <- function(country_data, country_policy, country) {
   country_slope <- data.frame(policy = as.factor(1:5), speed = rep(0, 5), country = rep(country, 5))
   
   while (i <= length(country_policy$vaccination_policy)) {
-    print(country_policy$vaccination_policy[i])
-    current_policy = country_policy$vaccination_policy[i]
     
-    print(current_policy > 0 )
+    current_policy = country_policy$vaccination_policy[i]
     
     if (current_policy > 0 & !is.na(country_policy$people_vaccinated[country_policy$vaccination_policy == current_policy])) {
       temp_people <- country_data$people_vaccinated[country_data$vaccination_policy == current_policy & !is.na(country_data$people_vaccinated)] / country_data$population[1]
@@ -362,8 +357,8 @@ for (country in countries) {
     select(iso_code, location, date, vaccination_policy, new_vaccinations_smoothed, population, people_vaccinated)
 
   temp_slope <- get_slope(country_data, country_policy, country)
-  # 
-  # country_slope <- rbind(country_slope, temp_slope)
+
+  country_slope <- rbind(country_slope, temp_slope)
 }
 
 
