@@ -580,6 +580,47 @@ box
 ```
 
 
+```{r}
+#VRI 
+start <- min(covid$date[!is.na(covid$people_vaccinated)])
+end <- start %m+% months(4)
+
+r_list4 = ct_model(covid[start <= covid$date & covid$date < end, ], log.y = FALSE, model = "logis")
+temp_data <- data.frame(bind_rows(r_list4$vri_data))
+temp_data <- data.frame(vri4 = temp_data$vri, temp_data %>% select(-vri))
+vri_data <- temp_data
+
+
+start <- min(covid$date[!is.na(covid$people_vaccinated)])
+start <- start %m+% months(4)
+end <- start %m+% months(8)
+
+r_list8 = ct_model(covid[start <= covid$date & covid$date < end, ], log.y = FALSE, model = "logis")
+temp_data <- data.frame(bind_rows(r_list8$vri_data))
+temp_data <- data.frame(vri8 = temp_data$vri, location = temp_data$location)
+vri_data <- merge(vri_data, temp_data, by = "location")
+
+start <- min(covid$date[!is.na(covid$people_vaccinated)])
+start <- start %m+% months(8)
+
+r_listf = ct_model(covid[start <= covid$date & covid$date < end, ], log.y = FALSE, model = "logis")
+temp_data <- data.frame(bind_rows(r_listf$vri_data))
+temp_data <- data.frame(vrif = temp_data$vri, location = temp_data$location)
+vri_data <- merge(vri_data, temp_data, by = "location")
+
+# Example of use, inspect the r_list to see what's included
+
+head(vri_data)
+
+
+
+
+
+
+
+```
+
+
 # Discussion & Conclusion {#conclusion}
 
 
