@@ -14,6 +14,7 @@ output:
     df_print: paged
 bibliography: [references.bib, references-pkg.bib]
 csl: apa-6th-edition.csl
+nocite: '@*'
 ---
 
 ```{r setup, include=FALSE}
