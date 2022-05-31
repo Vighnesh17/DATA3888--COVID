@@ -29,165 +29,12 @@ knitr::opts_chunk$set(
 ```{r libraries}
 library(tidyverse)
 library(kableExtra)
+library(DT)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(plotly)
 ```
-
-```{r ct_model}
-ct_model = function(df, log.y = FALSE, model = c("logis", "asymp", "linear"), model2 = "none") {
-  # cleaning
-  covid_clean = df %>% 
-    filter(str_length(iso_code) <= 3) %>% 
-    select(iso_code, location, date, people_vaccinated, population, aged_65_older, gdp_per_capita, cardiovasc_death_rate, population_density, hospital_beds_per_thousand, human_development_index, extreme_poverty, diabetes_prevalence, life_expectancy) %>% 
-    filter(people_vaccinated != 0 & !is.na(people_vaccinated)) %>% 
-    group_by(location) %>% 
-    mutate(t_days = difftime(date, min(date), units = "days") %>% as.integer())
-  
-  # initiate r_list, to store location, r, fit, ... respectively
-  r_list = list("location" = c(), "r" = c(), "fit" = c(), "y.real" = c(), "date" = c(), "t_days" = c(), "vri_data" = c(), "iso_code" = c())
-  
-  ## formulae, based on selected model, people_vaccinated, and log.y
-  # if log y
-  if (log.y) {
-    # for lm
-    f2 = formula(log(people_vaccinated) ~ t_days)
-    # for nls
-    if (model == "logis") {
-      f1 = formula(log(people_vaccinated) ~ SSlogis(t_days, Asym, xmid, scal))
-      # for custom starting values
-      f3 = formula(log(people_vaccinated) ~ Asym / (1 + exp((xmid - t_days)/scal)))
-    } else if (model == "asymp") {
-      f1 = formula(log(people_vaccinated) ~ SSasymp(t_days, Asym, R0, lrc))
-      # for custom starting values
-      f3 = formula(log(people_vaccinated) ~ Asym + (R0 - Asym)*exp( -t_days*exp(lrc) ))
-    }
-    # if not log y
-  } else {
-    # for lm
-    f2 = formula(people_vaccinated ~ t_days)
-    # for nls
-    if (model == "logis") {
-      f1 = formula(people_vaccinated ~ SSlogis(t_days, Asym, xmid, scal))
-      # for custom starting values
-      f3 = formula(people_vaccinated ~ Asym / (1 + exp((xmid - t_days)/scal)))
-    } else if (model == "asymp") {
-      f1 = formula(people_vaccinated ~ SSasymp(t_days, Asym, R0, lrc))
-      # for custom starting values
-      f3 = formula(people_vaccinated ~ Asym + (R0 - Asym)*exp( -t_days*exp(lrc) ))
-    }
-  }
-  
-  ## for each country (location)
-  for (loc in unique(covid_clean$location)) {
-    # subset cleaned data to one country
-    covid_subset = covid_clean %>% filter(location == loc) %>% ungroup()
-    iso = unique(covid_subset$iso_code)
-    
-    # nls model total 3 parameters, need to have at least 4 observations
-    if (nrow(covid_subset) <= 3) {
-      fit = NULL
-    } else {
-      # try to fit model
-      fit = tryCatch(
-        # main function, fit asymptote/logistic/linear regression model
-        expr = {
-          if (model == "linear") {
-            lm(f2, data = covid_subset)
-          } else {
-            nls(f1, data = covid_subset)
-          }
-        },
-        # if error (usually SS failed), fit another model
-        error = function(error_message){
-          
-          # fit linear model
-          if (model2 == "linear") {
-            return( lm(f2, data = covid_subset) )
-            # fit none
-          } else if (model2 == "none") {
-            return( NULL )
-            
-            # fit logis with custom made starting values
-          } else if (model2 == "custom.start" & model == "logis") {
-            y = ifelse(log.y, log(covid_subset$people_vaccinated), covid_subset$people_vaccinated)
-            Asym0 = max(y)
-            halfy.point = which.min(abs(y - 1/2*max(y)))
-            xmid0 = covid_subset$t_days[halfy.point]
-            scal0 = 4    # chosen based on manual trial and error on some failed SSlogis cases
-            return( tryCatch(
-              expr = nls(f3, data = covid_subset, start = list(Asym = Asym0, xmid = xmid0, scal = scal0), control = list(maxiter = 100, minFactor = 1/2048, warnOnly = TRUE)),
-              # if still fails, then return NULL (most likely not enough points)
-              error = function(e) { return( NULL ) }
-            ) )
-            
-            # fit asymp with custom made starting values
-          } else if (model2 == "custom.start" & model == "asymp") {
-            y = ifelse(log.y, log(covid_subset$people_vaccinated), covid_subset$people_vaccinated)
-            Asym0 = max(y)
-            R00 = min(y)
-            lrc0 = -5    # chosen based on manual trial and error on some failed SSasymp cases
-            return( tryCatch(
-              expr = nls(f3, data = covid_subset, start = list(Asym = Asym0, R0 = R00, lrc = lrc0), control = list(maxiter = 100, minFactor = 1/2048, warnOnly = TRUE, scaleOffset = 0.1)),
-              # if still fails, then return NULL (most likely not enough points)
-              error = function(e) { return( NULL ) }
-            ) )
-          }
-          
-        }
-      )
-    }
-    
-    # calculate my r value, may need transform before put into vri formula
-    if (class(fit) == "lm") {
-      r = coef(fit)["t_days"]
-    } else if (class(fit) == "nls") {
-      if (model == "logis") { scal = coef(fit)["scal"]
-      r = 1/scal
-      } else if (model == "asymp") { lrc = coef(fit)["lrc"]
-      r = exp(lrc)
-      }
-    } else if (class(fit) == "NULL") {
-      r = NA
-    }
-    
-    # vri = r * last people_vaccinated / end population
-    last_entry = tail(covid_subset, 1)
-    vri = r * last_entry$people_vaccinated / last_entry$population
-    
-    median_data = covid_subset %>% 
-      select(-date, -t_days, -location, -iso_code, -people_vaccinated) %>% 
-      summarise(across(everything(), median, na.rm = TRUE))
-    
-    vri_data = median_data %>% 
-      mutate(iso_code = iso, location = loc, vri = vri, .before = 1)
-    
-    r_list[[1]] = c(r_list[[1]], loc)
-    r_list[[2]] = c(r_list[[2]], r)
-    r_list[[3]] = c(r_list[[3]], list(fit))
-    r_list[[4]] = c(r_list[[4]], list(covid_subset$people_vaccinated))
-    r_list[[5]] = c(r_list[[5]], list(covid_subset$date))
-    r_list[[6]] = c(r_list[[6]], list(covid_subset$t_days))
-    r_list[[7]] = c(r_list[[7]], list(vri_data))
-    r_list[[8]] = c(r_list[[8]], iso)
-  }
-  
-  ## Measuring model fitness, residual standard error (RSE).
-  for (i in seq_len(length(r_list$fit))) {
-    if ( is.null(r_list$fit[[i]]) ) {
-      r_list$rse[[i]] = NA
-    } else if (log.y) {
-      # residuals = real - fitted
-      resid = r_list$y.real[[i]] - exp(fitted(r_list$fit[[i]]))
-      # degrees of freedom = n - k - 1, k = number of parameters we want to predict
-      df = summary(r_list$fit[[i]])$df[2]
-      r_list$rse[[i]] = (sum(resid^2)/df)^(1/2)
-    } else {
-      r_list$rse[[i]] = sigma(r_list$fit[[i]])
-    }
-  }
-  
-  return(r_list)
-}
-```
-
 
 # Guide for RMarkdown report (remove for final report)
 
@@ -271,8 +118,8 @@ covid_data$date = ymd(covid_data$date)
 
 policy = read.csv("data/covid-vaccination-policy.csv")
 policy$Day = ymd(policy$Day)
-policy$vaccination_policy = as.factor(policy$vaccination_policy)
 
+policy$vaccination_policy = as.factor(policy$vaccination_policy)
 happiness = read.csv("data/happiness-cantril-ladder.csv")
 ghs = read.csv("data/2021-GHS-Index-April-2022.csv")
 corruption = read.csv("data/CPI2020_GlobalTablesTS_210125.xlsx")
@@ -281,6 +128,143 @@ corruption = read.csv("data/CPI2020_GlobalTablesTS_210125.xlsx")
 
 
 # Methods
+
+```{r}
+# smoother function, returns smoothed column
+
+Lowess <- function(data, f) {
+  lowess_fit <- lowess(data, f = f)
+  return(lowess_fit$y)
+}
+lag_covid = covid_data
+lag_covid = lag_covid %>%
+  filter(population > 1500000) %>%
+  filter(gdp_per_capita > 0)
+countrys <- unique(lag_covid$location)
+deleted <- c("Afghanistan", "Antigua and Barbuda", "Bangladesh","Benin", "Bhutan", "Bonaire Sint Eustatius and Saba", "Botswana", "Burundi","Burkina Faso", "Cameroon", "Cote d'Ivoire", "Democratic Republic of Congo", "Ethiopia","Eritrea", "Gabon", "Ghana", "Guernsey", "Guinea", "Kenya", "Kuwait", "Liberia", "Laos", "Namibia", "Nepal","Nicaragua", "Niger", "Nigeria", "Palestine", "Philippines", "Pitcairn", "Rwanda", "Saint Helena", "Senegal", "Sierra Leone", "Somalia", "South Sudan", "Sudan", "Tokelau", "Turkmenistan","Tanzania", "Uganda","Yemen", "World", "Zambia")
+countrys = countrys[! countrys %in% deleted]
+lag_covid = select(lag_covid, "date", "location", "people_vaccinated_per_hundred", "people_fully_vaccinated_per_hundred")
+start_date = "2021-02-01"
+end_date = "2021-08-01"
+lag_covid = lag_covid %>% filter(date >= start_date & date < end_date)
+lag_covid$people_vaccinated_per_hundred[is.na(lag_covid$people_vaccinated_per_hundred)] = 0
+lag_covid$people_fully_vaccinated_per_hundred[is.na(lag_covid$people_fully_vaccinated_per_hundred)] = 0
+
+lagValue <- function(FirstDose, SecondDose, windowsize, p)
+{
+  # vector for all measures of distance between matrices
+  dist_vector = c()
+  i = 1
+  while (i <= windowsize){
+    # select different subsets of matrices, calculate the distances between the 2 matrices and store the distance. This while loop will contain information for 1st vaccine lag
+    FirstDose_subset <- FirstDose[i:nrow(FirstDose),1]
+    SecondDose_subset <- SecondDose[1:(1 - i + nrow(SecondDose)),1]
+    dist_FirstDose <- proxy::dist(t(FirstDose_subset), t(SecondDose_subset), method = "Minkowski", p = p)
+    dist_vector = c(dist_vector, dist_FirstDose)
+    i = i + 1
+  }
+  
+  
+  j = 1
+  while (j <= windowsize){
+    # select different subsets of matrices, calculate the distances between the 2 matrices and store the distance. This while loop will contain information for 2nd vaccine lag
+    FirstDose_subset1 <- FirstDose[1:(1 - j + nrow(FirstDose)),1]
+    SecondDose_subset1 <- SecondDose[j:nrow(SecondDose),1]
+    dist_SecondDose <- proxy::dist(t(FirstDose_subset1), t(SecondDose_subset1), method = "Minkowski", p = p)
+    dist_vector = c(dist_vector, dist_SecondDose)
+    j = j + 1
+  }
+  
+  # select min value index which corresponds to value of the lag
+  return(which.min(dist_vector))
+}  
+```
+
+
+```{r}
+lag_vector_1 <- c()
+lag_vector_2 <- c()
+lag_vector_3 <- c()
+# loop through each country and calculate 3 time lags: manhattan distance, euclidean distance and minkowski (p=3) time lags
+p = 1
+while (p <= 3){
+  z = 1
+  while (z <= length(countrys)){
+    # only select records for certain country and only select 1st and 2nd vaccine columns
+    lagCovid_filtered = filter(lag_covid, location == countrys[z])
+    combined_matrix <- cbind(lagCovid_filtered[,3], lagCovid_filtered[,4])
+    
+    # In the dataset, there are missing values. Will replace these missing values (0) with the value from the date before. Do it for both 1st and 2nd vaccine columns
+    
+    for (i in 1:nrow(combined_matrix)){
+      if (i == 1){
+        } else{
+        if (combined_matrix[i,1] == 0){
+          combined_matrix[i,1] = combined_matrix[i-1, 1]
+        }
+      }
+    }
+    
+    for (j in 1:nrow(combined_matrix)){
+      if (j == 1){
+        } else{
+        if (combined_matrix[j,2] == 0){
+          combined_matrix[j,2] = combined_matrix[j-1, 2]
+        }
+      }
+    }
+    
+    # Apply smoothing function to 1st and 2nd vaccine columns. f = 0.15 is an arbitrary value
+    
+    combined_matrix_smooth<- as.matrix(apply(combined_matrix, 2, Lowess, f = 0.15))
+    
+    # Store each column separately as individual matrices
+    FirstDose_matrix = as.matrix(combined_matrix_smooth[,1])
+    SecondDose_matrix = as.matrix(combined_matrix_smooth[,2])
+    
+    # Input the individual matrices into the lagValue function to find the lag between the 1st and 2nd dose for a particular country
+    lag <- lagValue(FirstDose_matrix, SecondDose_matrix, windowsize=100, p)
+    
+    #store value of lag
+    if (p == 1){
+      lag_vector_1 <- c(lag_vector_1, lag)
+    } else if (p == 2){
+      lag_vector_2 <- c(lag_vector_2, lag)
+    } else {
+      lag_vector_3 <- c(lag_vector_3, lag)
+    }
+    z = z + 1
+  }
+  p = p + 1
+}
+# label the lag values with the corresponding country
+names(lag_vector_1) <- countrys
+names(lag_vector_2) <- countrys
+names(lag_vector_3) <- countrys
+# function to explain the time lag value
+
+lagType <- function(lag, windowsize)
+{ # Function to convert indice value given by lagValue to a value for the Time Lag.
+  # Any lag values that are greater than windowsize were part of the 2nd half of the 'dist_vector' from the lagValue function, the half of the vector for the 2nd vaccine lag.
+  # Therefore need to subtract off all the days from the 1st half of the 'dist_vector' to get number of days for 2nd vaccine lag.
+  # No such issue for 1st vaccine lag as all values are within first half.
+  if (lag > windowsize){
+    return(c(LagType = "Second Dose Lag", Lag = lag - windowsize - 1))
+  } else {
+    return(c(LagType = "First Dose Lag", Lag = lag - 1))
+  }
+}
+# Apply function to each country's Time lag value 
+lag_df_1 = mapply(lagType, lag = lag_vector_1, windowsize = 100)
+lag_df_2 = mapply(lagType, lag = lag_vector_2, windowsize = 100)
+lag_df_3 = mapply(lagType, lag = lag_vector_3, windowsize = 100)
+
+# Visualise Time lags
+
+total_lag = cbind(t(lag_df_1), t(lag_df_2), t(lag_df_3))
+colnames(total_lag) = c("LagType", "Lag: Euclidean distance", "LagType", "Lag: Manhattan distance", "LagType", "Lag: Minkowksi distance (P=3)")
+```
+
 
 
 ## Time lag between 1st and 2nd dose {#time-lag}
@@ -293,6 +277,25 @@ corruption = read.csv("data/CPI2020_GlobalTablesTS_210125.xlsx")
 
 
 # Results
+
+```{r}
+datatable(total_lag, options = list(columnDefs = list(list(className = 'dt-center', targets = "_all"))))
+```
+
+
+```{r, warning = False}
+# Box plots of time lags for all 3 types of time lags measurements
+
+total_lag_df <- as.data.frame(total_lag)
+colnames(total_lag_df) = c("LagType", "LagEuclideanDistance", "LagType", "LagManhattanDistance","LagType", "LagMinkowskiDistanceP3")
+
+box <- plot_ly(type = "box")
+box <- box %>% add_boxplot(x = total_lag_df$LagManhattanDistance, boxpoints = "all", jitter = 0.3, name = "Manhattan Distance")
+box <- box %>% add_boxplot(x = total_lag_df$LagEuclideanDistance, boxpoints = "all", jitter = 0.3, name = "Euclidean Distance")
+box <- box %>% add_boxplot(x = total_lag_df$LagMinkowskiDistanceP3, boxpoints = "all", jitter = 0.3, name = "Minkowski Distance (P=3)")
+box <- box %>% layout(title = "Box Plot of Lag Between 1st and 2nd Dose")
+box
+```
 
 
 # Discussion & Conclusion {#conclusion}
@@ -320,4 +323,3 @@ labs = setdiff(labs, c("setup", "get-labels"))
 ```{r all-code, ref.label="example-plot", echo=TRUE, eval=FALSE}
 # only example-plot code chunk
 ```
-
