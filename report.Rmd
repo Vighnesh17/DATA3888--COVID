@@ -14,6 +14,7 @@ output:
     df_print: paged
 bibliography: [references.bib, references-pkg.bib]
 csl: apa-6th-edition.csl
+nocite: '@*'
 ---
 
 ```{r setup, include=FALSE}
@@ -22,13 +23,33 @@ knitr::opts_chunk$set(
   message = FALSE,
   warning = FALSE,
   fig.align = "center",
-  fig.cap = ""
+  fig.cap = "",
+  cache = TRUE
 )
 ```
 
 ```{r libraries}
 library(tidyverse)
 library(kableExtra)
+library(DT)
+library(plotly)
+library(readxl)
+library(ggthemes)
+library(maps)
+
+library(viridis) # Color gradients
+library(lubridate)
+library(qtlcharts) # Interactive scatter plots 
+
+library(randomForest) 
+library(ranger)       # a faster implementation of randomForest
+library(caret)        # performe many machine learning models
+library(broom)  # try: `install.packages("backports")` if diretly installing broom gives an error
+
+library(reshape2) # to use melt()
+
+library(deSolve)
+library(permimp) # for calculating conditional importance in a speedy way
 ```
 
 # Guide for RMarkdown report (remove for final report)
@@ -42,7 +63,6 @@ Bibliographies will be included automatically at the end before appendix. Copy p
 
 Examples of how to reference bib entries in-text (check the rmd file):
 
-- Garth reference: [@RN83]
 - `tidyverse` reference: [@tidyverse]
 
 ## Sections cross-referencing
@@ -73,12 +93,12 @@ Here is an example plot with caption and its in-text reference (check rmd file):
 
 ```{r example-plot, fig.cap="Example plot"}
 # example plot
-mtcars %>% 
-  rownames_to_column("car") %>% 
-  as_tibble() %>% 
-  ggplot() +
-  aes(x = factor(cyl), y = disp, colour = factor(cyl)) +
-  geom_boxplot()
+# mtcars %>% 
+#   rownames_to_column("car") %>% 
+#   as_tibble() %>% 
+#   ggplot() +
+#   aes(x = factor(cyl), y = disp, colour = factor(cyl)) +
+#   geom_boxplot()
 ```
 
 Here is an example table with caption and its in-text reference:
@@ -89,15 +109,15 @@ Here is an example table with caption and its in-text reference:
 
 ```{r example-table}
 # example table
-mtcars %>% 
-  kbl(caption = "Example table",
-      format = "html",
-      booktabs = TRUE,
-      row.names = TRUE,
-      escape = TRUE) %>%
-  kable_styling(bootstrap_options = c("condensed", "striped", "hover"),
-                position = "center") %>%
-  scroll_box(height = "300px")
+# mtcars %>% 
+#   kbl(caption = "Example table",
+#       format = "html",
+#       booktabs = TRUE,
+#       row.names = TRUE,
+#       escape = TRUE) %>%
+#   kable_styling(bootstrap_options = c("condensed", "striped", "hover"),
+#                 position = "center") %>%
+#   scroll_box(height = "300px")
 ```
 
 
@@ -107,20 +127,499 @@ mtcars %>%
 
 # Data Background
 
+```{r data-loadin, warning=FALSE, results='hide'}
+covid_data = read_csv("data/covid_data_latest.csv")
+covid_data$date = ymd(covid_data$date)
+
+policy = read_csv("data/covid-vaccination-policy.csv")
+policy$Day = ymd(policy$Day)
+
+
+happiness = read_csv("data/happiness-cantril-ladder.csv")
+ghs = read_csv("data/2021-GHS-Index-April-2022.csv")
+corruption = read_xlsx("data/CPI2020_GlobalTablesTS_210125.xlsx", sheet=1, skip=2)
+
+source("data/ct_model.R")
+```
+
+
 
 # Methods
 
-
 ## Time lag between 1st and 2nd dose {#time-lag}
+```{r}
+# smoother function, returns smoothed column
+
+Lowess <- function(data, f) {
+  lowess_fit <- lowess(data, f = f)
+  return(lowess_fit$y)
+}
+lag_covid = covid_data
+lag_covid = lag_covid %>%
+  filter(population > 1500000) %>%
+  filter(gdp_per_capita > 0)
+countrys <- unique(lag_covid$location)
+deleted <- c("Afghanistan", "Antigua and Barbuda", "Bangladesh","Benin", "Bhutan", "Bonaire Sint Eustatius and Saba", "Botswana", "Burundi","Burkina Faso", "Cameroon", "Cote d'Ivoire", "Democratic Republic of Congo", "Ethiopia","Eritrea", "Gabon", "Ghana", "Guernsey", "Guinea", "Kenya", "Kuwait", "Liberia", "Laos", "Namibia", "Nepal","Nicaragua", "Niger", "Nigeria", "Palestine", "Philippines", "Pitcairn", "Rwanda", "Saint Helena", "Senegal", "Sierra Leone", "Somalia", "South Sudan", "Sudan", "Tokelau", "Turkmenistan","Tanzania", "Uganda","Yemen", "World", "Zambia")
+countrys = countrys[! countrys %in% deleted]
+lag_covid = select(lag_covid, "date", "location", "people_vaccinated_per_hundred", "people_fully_vaccinated_per_hundred")
+start_date = "2021-02-01"
+end_date = "2021-08-01"
+lag_covid = lag_covid %>% filter(date >= start_date & date < end_date)
+lag_covid$people_vaccinated_per_hundred[is.na(lag_covid$people_vaccinated_per_hundred)] = 0
+lag_covid$people_fully_vaccinated_per_hundred[is.na(lag_covid$people_fully_vaccinated_per_hundred)] = 0
+
+lagValue <- function(FirstDose, SecondDose, windowsize, p)
+{
+  # vector for all measures of distance between matrices
+  dist_vector = c()
+  i = 1
+  while (i <= windowsize){
+    # select different subsets of matrices, calculate the distances between the 2 matrices and store the distance. This while loop will contain information for 1st vaccine lag
+    FirstDose_subset <- FirstDose[i:nrow(FirstDose),1]
+    SecondDose_subset <- SecondDose[1:(1 - i + nrow(SecondDose)),1]
+    dist_FirstDose <- proxy::dist(t(FirstDose_subset), t(SecondDose_subset), method = "Minkowski", p = p)
+    dist_vector = c(dist_vector, dist_FirstDose)
+    i = i + 1
+  }
+  
+  
+  j = 1
+  while (j <= windowsize){
+    # select different subsets of matrices, calculate the distances between the 2 matrices and store the distance. This while loop will contain information for 2nd vaccine lag
+    FirstDose_subset1 <- FirstDose[1:(1 - j + nrow(FirstDose)),1]
+    SecondDose_subset1 <- SecondDose[j:nrow(SecondDose),1]
+    dist_SecondDose <- proxy::dist(t(FirstDose_subset1), t(SecondDose_subset1), method = "Minkowski", p = p)
+    dist_vector = c(dist_vector, dist_SecondDose)
+    j = j + 1
+  }
+  
+  # select min value index which corresponds to value of the lag
+  return(which.min(dist_vector))
+}  
+```
+
+
+```{r}
+lag_vector_1 <- c()
+lag_vector_2 <- c()
+lag_vector_3 <- c()
+# loop through each country and calculate 3 time lags: manhattan distance, euclidean distance and minkowski (p=3) time lags
+p = 1
+while (p <= 3){
+  z = 1
+  while (z <= length(countrys)){
+    # only select records for certain country and only select 1st and 2nd vaccine columns
+    lagCovid_filtered = filter(lag_covid, location == countrys[z])
+    combined_matrix <- cbind(lagCovid_filtered[,3], lagCovid_filtered[,4])
+    
+    # In the dataset, there are missing values. Will replace these missing values (0) with the value from the date before. Do it for both 1st and 2nd vaccine columns
+    
+    for (i in 1:nrow(combined_matrix)){
+      if (i == 1){
+      } else{
+        if (combined_matrix[i,1] == 0){
+          combined_matrix[i,1] = combined_matrix[i-1, 1]
+        }
+      }
+    }
+    
+    for (j in 1:nrow(combined_matrix)){
+      if (j == 1){
+      } else{
+        if (combined_matrix[j,2] == 0){
+          combined_matrix[j,2] = combined_matrix[j-1, 2]
+        }
+      }
+    }
+    
+    # Apply smoothing function to 1st and 2nd vaccine columns. f = 0.15 is an arbitrary value
+    
+    combined_matrix_smooth<- as.matrix(apply(combined_matrix, 2, Lowess, f = 0.15))
+    
+    # Store each column separately as individual matrices
+    FirstDose_matrix = as.matrix(combined_matrix_smooth[,1])
+    SecondDose_matrix = as.matrix(combined_matrix_smooth[,2])
+    
+    # Input the individual matrices into the lagValue function to find the lag between the 1st and 2nd dose for a particular country
+    lag <- lagValue(FirstDose_matrix, SecondDose_matrix, windowsize=100, p)
+    
+    #store value of lag
+    if (p == 1){
+      lag_vector_1 <- c(lag_vector_1, lag)
+    } else if (p == 2){
+      lag_vector_2 <- c(lag_vector_2, lag)
+    } else {
+      lag_vector_3 <- c(lag_vector_3, lag)
+    }
+    z = z + 1
+  }
+  p = p + 1
+}
+# label the lag values with the corresponding country
+names(lag_vector_1) <- countrys
+names(lag_vector_2) <- countrys
+names(lag_vector_3) <- countrys
+# function to explain the time lag value
+
+lagType <- function(lag, windowsize)
+{ # Function to convert indice value given by lagValue to a value for the Time Lag.
+  # Any lag values that are greater than windowsize were part of the 2nd half of the 'dist_vector' from the lagValue function, the half of the vector for the 2nd vaccine lag.
+  # Therefore need to subtract off all the days from the 1st half of the 'dist_vector' to get number of days for 2nd vaccine lag.
+  # No such issue for 1st vaccine lag as all values are within first half.
+  if (lag > windowsize){
+    return(c(LagType = "Second Dose Lag", Lag = lag - windowsize - 1))
+  } else {
+    return(c(LagType = "First Dose Lag", Lag = lag - 1))
+  }
+}
+# Apply function to each country's Time lag value 
+lag_df_1 = mapply(lagType, lag = lag_vector_1, windowsize = 100)
+lag_df_2 = mapply(lagType, lag = lag_vector_2, windowsize = 100)
+lag_df_3 = mapply(lagType, lag = lag_vector_3, windowsize = 100)
+
+# Visualise Time lags
+
+total_lag = cbind(t(lag_df_1), t(lag_df_2), t(lag_df_3))
+colnames(total_lag) = c("LagType", "Lag: Euclidean distance", "LagType", "Lag: Manhattan distance", "LagType", "Lag: Minkowksi distance (P=3)")
+```
+
 
 
 ## Vaccine rollout index (VRI) and variable importance {#vri}
 
+#### Exploration
+```{r}
+countries = c("United States", "India", "Brazil", "France", "United Kingdom", "Russia", 
+              "Turkey", "Italy", "Germany", "Spain", "Argentina",
+                "Iran", "Colombia", "Poland", 'Mexico', "Netherlands", 
+              "Indonesia", "Ukraine", "South Africa", "Philippines", "Peru", "Belgium",
+                "Czechia", "Japan", "Iran")
 
-## Vaccine uptake and availability {#availability}
+policy_data <- covid_data %>% 
+  filter(location %in% countries)
+
+policy <- policy %>% filter(Entity %in% countries)
+
+policy_data <- policy_data%>% 
+  select(iso_code, continent, location, date,new_people_vaccinated_smoothed_per_hundred,  new_people_vaccinated_smoothed, new_vaccinations, new_vaccinations_smoothed, new_vaccinations_smoothed_per_million, population, people_vaccinated)
+
+policy_data <- merge(policy_data, policy, by.x = c('iso_code', "date", "location"), by.y = c('Code', 'Day', "Entity"))
+```
+
+```{r}
+#The 'get slope' function was created to calculate the slope of each country's vaccination policy from stage 1 to stage 5. The slope is calculated using the lm function. This is then extracted and stored in a slope. The slope is essentially the speed of vaccination uptake with respect to the vaccination policy, which is then compared to other countries in a graph.
+get_slope <- function(country_data, country_policy, country) {
+  i = 1
+  country_slope <- data.frame(policy = as.factor(1:5), speed = rep(0, 5), country = rep(country, 5))
+  
+  while (i <= length(country_policy$vaccination_policy)) {
+    
+    current_policy = country_policy$vaccination_policy[i]
+    
+    if (current_policy > 0 & !is.na(country_policy$people_vaccinated[country_policy$vaccination_policy == current_policy])) {
+      temp_people <- country_data$people_vaccinated[country_data$vaccination_policy == current_policy & !is.na(country_data$people_vaccinated)] / country_data$population[1]
+      
+      temp_index <- 1:length(temp_people)
+      
+      if (length(temp_index) > 1) {
+        # Linear model
+        mod <- lm(temp_people ~ temp_index)
+        
+        # Extract and store the slope
+        country_slope$speed[country_slope$policy == current_policy] <- summary(mod)$coefficients[2,1]
+      } else {
+        # Some countries only have a policy for 1 day -> treat the slope as 0
+        country_slope$speed[country_slope$policy == current_policy] <- 0
+      }
+      
+    } 
+    
+    i <- i + 1
+    
+  }
+  
+  return(country_slope)
+}
+```
+
+```{r}
+country_slope = NULL
+#loop through the countries in the dataset and subset the required variables in another dataframe
+for (country in countries) {
+  country_data <- policy_data[policy_data$location == country, ]
+  
+  country_policy <- country_data[!is.na(country_data$people_vaccinated), ] %>%
+    group_by(vaccination_policy) %>%
+    arrange(date) %>%
+    slice(1L) %>%
+    select(iso_code, location, date, vaccination_policy, new_vaccinations_smoothed, population, people_vaccinated)
+#Apply the 'get_slope' function to calculate the speed of each country then store in another vector
+  temp_slope <- get_slope(country_data, country_policy, country)
+
+  country_slope <- rbind(country_slope, temp_slope)
+}
+
+#plot the
+global <- ggplot(data = country_slope, aes(x = country, y = speed, fill = as.factor(policy))) + 
+  geom_bar(stat="identity", position=position_dodge()) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + 
+  scale_y_sqrt() + 
+  ggtitle("All countries") + 
+  xlab("Countries") + 
+  ylab("Slope") + 
+  labs(fill = "Avalability stage")
+
+global
+```
+
+#### VRI
+
+```{r}
+# Example of use, inspect the r_list to see what's included
+r_list1 = ct_model(covid_data, log.y = FALSE, model = "logis")
+
+r_list2 = ct_model(covid_data, log.y = TRUE, model = "asymp")
+
+vri_data <- data.frame(bind_rows(r_list1$vri_data))
+head(vri_data)
+```
+
+```{r}
+# Merge the datasets
+corruption <- corruption %>% select(c("ISO3", "CPI score 2020")) 
+
+happiness <- happiness %>% group_by(Code) %>%
+  arrange(Year) %>%
+  filter(!is.na(`Life satisfaction in Cantril Ladder (World Happiness Report 2021)`)) %>%
+  dplyr::summarise(satisfaction=last(`Life satisfaction in Cantril Ladder (World Happiness Report 2021)`)) 
+
+
+joint_data <- merge(vri_data,corruption,  by.x=c("iso_code"), by.y=c("ISO3"))
+
+joint_data <- merge(joint_data,happiness, by.x=c("iso_code"), by.y=c("Code"))
+
+# GHE-INDEX
+ghs <- ghs %>% filter(Year == 2021) %>% select(Country,`OVERALL SCORE`)
+
+## adding iso code to ghs dataset
+ghs <- ghs %>% mutate(iso_code = iso.alpha(Country, 3), .before = 1)
+ghs <- ghs %>% mutate(
+  iso_code = case_when(
+    !is.na(iso_code) ~ iso_code,
+    Country == "Bosnia and Hercegovina" ~ "BIH",
+    Country == "Cabo Verde" ~ "CPV",
+    Country == "Congo (Brazzaville)" ~ "COG",
+    Country == "Congo (Democratic Republic)" ~ "COD",
+    Country == "Côte d'Ivoire" ~ "CIV",
+    Country == "eSwatini" ~ "BIH",
+    Country == "Kyrgyz Republic" ~ "KGZ",
+    Country == "São Tomé and Príncipe" ~ "STP",
+    Country == "St Kitts & Nevis" ~ "KNA",
+    Country == "St Lucia" ~ "LCA",
+    Country == "St Vincent & The Grenadines" ~ "VCT",
+    Country == "United Kingdom" ~ "GBR",
+    Country == "United States of America" ~ "USA"
+  )
+)
+
+
+joint_data <- merge(joint_data, ghs[,-2],  by.x=c("iso_code"), by.y=c("iso_code"))
+colnames(joint_data)[16] <- "GHS_score"
+```
+```{r}
+# take log for highly skewed variables
+vri_extra_logged = joint_data %>% select(-population) %>%
+  mutate(
+    across(.cols = c(population_density, aged_65_older, gdp_per_capita, hospital_beds_per_thousand, cardiovasc_death_rate, extreme_poverty, diabetes_prevalence),
+           ~log(.))
+  ) %>% 
+  rename_with(.cols = c(population_density, aged_65_older, gdp_per_capita, hospital_beds_per_thousand, cardiovasc_death_rate, extreme_poverty, diabetes_prevalence),
+              .fn = ~paste0("log_", .))
+
+
+min_max_norm <- function(x) {
+    (x - min(x,na.rm = TRUE)) / (max(x,na.rm = TRUE) - min(x,na.rm = TRUE))
+}
+
+scaled_data <- data.frame(lapply(vri_extra_logged[4:15], min_max_norm), vri = vri_extra_logged$vri)
+
+scaled_data_cleaned <- scaled_data %>% filter( !is.na(vri) & !is.na(log_population_density)& 
+                                    !is.na(log_gdp_per_capita) &!is.na(log_aged_65_older)&
+                                      !is.na(log_extreme_poverty)&
+                                      !is.na(human_development_index)& 
+                                      !is.na(log_cardiovasc_death_rate)& 
+                                      !is.na(log_hospital_beds_per_thousand)) %>% 
+                                 select(c(vri,log_gdp_per_capita,log_aged_65_older,log_population_density,
+                                     CPI.score.2020,log_extreme_poverty,
+                                     satisfaction,life_expectancy,human_development_index,
+                                     log_cardiovasc_death_rate,log_diabetes_prevalence,
+                                     log_hospital_beds_per_thousand, GHS_score)) 
+
+```
+
+```{r}
+# Appendix
+
+spearman <- cor(scaled_data_cleaned, use="pairwise.complete.obs", method="spearman")
+
+qtlcharts::iplotCorr(
+  scaled_data_cleaned,
+  reorder=TRUE,
+  corr = spearman,
+  chartOpts = list(cortitle = "Spearman's correlation")
+)
+```
+
+```{r}
+# Remove population_density based on scatter plot and correlation heatmap
+
+scaled_data_cleaned <- scaled_data_cleaned %>% select(-log_population_density)
+```
+
+```{r warning=FALSE, message=FALSE}
+# hyper parameter grid search (definitely need a bit modify)
+mtry <-  seq(2, 6, by = 1)
+num_trees <- c(100,150,200,250,300,350,400,450,500)
+
+
+# Manual Search
+#control <- trainControl(method="cv", number=3, search="grid")
+grid_param <- expand.grid(.mtry=mtry)
+modellist <- list()
+set.seed(3888)
+for (ntree in num_trees) {
+	fit <- train( vri~., 
+                      data= scaled_data_cleaned, 
+                      method='rf', 
+                      tuneGrid=grid_param, 
+	                    ntree= ntree,
+	                    importance=TRUE,
+                      trControl=trainControl(method='cv', 
+                        number=5) )
+	key <- toString(ntree)
+	modellist[[key]] <- fit$finalModel
+
+}
+
+
+## COMPARE RESULTS
+
+lowest_mse <- 1
+model_mse <- modellist[[1]]
+highest_r2 <- 0
+model_r2 <- modellist[[1]]
+  
+for (i in c(1:length(modellist))) {
+
+  result <- predict(modellist[[i]], newdata=scaled_data_cleaned %>% select(-vri))
+  result_avg <- mean(scaled_data_cleaned$vri)
+  mse = mean((scaled_data_cleaned$vri - result)^2)
+  r2 = 1 - (sum((scaled_data_cleaned$vri - result)^2))/(sum((scaled_data_cleaned$vri - result_avg)^2))
+  if (highest_r2 < r2){
+     highest_r2 = r2
+     model_r2 = modellist[[i]]
+  }
+  if (lowest_mse > mse) {
+    lowest_mse = mse
+    model_mse = modellist[[i]]
+  }
+
+ 
+}
+
+# Calculating importance of features to the model: Handling multicollinear features by using conditional permutation
+
+## https://cran.r-project.org/web/packages/permimp/vignettes/permimp-package.html
+
+set.seed(3888)
+optimal_rf <- randomForest(vri ~ ., data= scaled_data_cleaned, mtry = 2, keep.forest = TRUE, keep.inbag = FALSE, ntree= 300)
+## compute permutation importance
+rf_permimp <- permimp(optimal_rf, progressBar = FALSE, conditional = TRUE,scaled = TRUE, thresholdDiagnostics = TRUE,type="response",do_check = FALSE)
+
+vimp <- as.data.frame(rf_permimp$values)
+colnames(vimp)[1] <- "importance"
+vimp <- round(vimp, 4)
+vimp$var <- row.names(vimp)
+
+options(scipen=999)
+vimp <- vimp %>%
+  arrange(desc(importance)) %>%
+  slice(1:5)
+
+
+vimp %>%
+  ggplot(aes(reorder(var,importance), importance)) +
+  geom_col(fill="steelblue") +
+  coord_flip() +
+  theme_bw()+
+  ggtitle("Top 5 important variables") +
+  xlab("Factors in order") +
+  ylab("Scaled importance")
+
+```
 
 
 # Results
+
+```{r}
+datatable(total_lag, options = list(columnDefs = list(list(className = 'dt-center', targets = "_all"))))
+```
+
+
+```{r}
+# Box plots of time lags for all 3 types of time lags measurements
+
+total_lag_df <- as.data.frame(total_lag)
+colnames(total_lag_df) = c("LagType", "LagEuclideanDistance", "LagType", "LagManhattanDistance","LagType", "LagMinkowskiDistanceP3")
+
+box <- plot_ly(type = "box")
+box <- box %>% add_boxplot(x = total_lag_df$LagManhattanDistance, boxpoints = "all", jitter = 0.3, name = "Manhattan Distance")
+box <- box %>% add_boxplot(x = total_lag_df$LagEuclideanDistance, boxpoints = "all", jitter = 0.3, name = "Euclidean Distance")
+box <- box %>% add_boxplot(x = total_lag_df$LagMinkowskiDistanceP3, boxpoints = "all", jitter = 0.3, name = "Minkowski Distance (P=3)")
+box <- box %>% layout(title = "Box Plot of Lag Between 1st and 2nd Dose")
+box
+```
+
+
+```{r}
+#VRI 
+start <- min(covid$date[!is.na(covid$people_vaccinated)])
+end <- start %m+% months(4)
+
+r_list4 = ct_model(covid[start <= covid$date & covid$date < end, ], log.y = FALSE, model = "logis")
+temp_data <- data.frame(bind_rows(r_list4$vri_data))
+temp_data <- data.frame(vri4 = temp_data$vri, temp_data %>% select(-vri))
+vri_data <- temp_data
+
+
+start <- min(covid$date[!is.na(covid$people_vaccinated)])
+start <- start %m+% months(4)
+end <- start %m+% months(8)
+
+r_list8 = ct_model(covid[start <= covid$date & covid$date < end, ], log.y = FALSE, model = "logis")
+temp_data <- data.frame(bind_rows(r_list8$vri_data))
+temp_data <- data.frame(vri8 = temp_data$vri, location = temp_data$location)
+vri_data <- merge(vri_data, temp_data, by = "location")
+
+start <- min(covid$date[!is.na(covid$people_vaccinated)])
+start <- start %m+% months(8)
+
+r_listf = ct_model(covid[start <= covid$date & covid$date < end, ], log.y = FALSE, model = "logis")
+temp_data <- data.frame(bind_rows(r_listf$vri_data))
+temp_data <- data.frame(vrif = temp_data$vri, location = temp_data$location)
+vri_data <- merge(vri_data, temp_data, by = "location")
+
+# Example of use, inspect the r_list to see what's included
+
+head(vri_data)
+
+
+
+
+
+
+
+```
 
 
 # Discussion & Conclusion {#conclusion}
@@ -148,4 +647,3 @@ labs = setdiff(labs, c("setup", "get-labels"))
 ```{r all-code, ref.label="example-plot", echo=TRUE, eval=FALSE}
 # only example-plot code chunk
 ```
-
