@@ -342,7 +342,7 @@ get_slope <- function(country_data, country_policy, country) {
 
 ```{r}
 country_slope = NULL
-
+#loop through the countries in the dataset and subset the required variables in another dataframe
 for (country in countries) {
   country_data <- policy_data[policy_data$location == country, ]
   
@@ -351,13 +351,13 @@ for (country in countries) {
     arrange(date) %>%
     slice(1L) %>%
     select(iso_code, location, date, vaccination_policy, new_vaccinations_smoothed, population, people_vaccinated)
-
+#Apply the 'get_slope' function to calculate the speed of each country then store in another vector
   temp_slope <- get_slope(country_data, country_policy, country)
 
   country_slope <- rbind(country_slope, temp_slope)
 }
 
-
+#plot the
 global <- ggplot(data = country_slope, aes(x = country, y = speed, fill = as.factor(policy))) + 
   geom_bar(stat="identity", position=position_dodge()) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + 
