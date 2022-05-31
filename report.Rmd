@@ -486,7 +486,7 @@ num_trees <- c(100,150,200,250,300,350,400,450,500)
 #control <- trainControl(method="cv", number=3, search="grid")
 grid_param <- expand.grid(.mtry=mtry)
 modellist <- list()
-set.seed(388)
+set.seed(3888)
 for (ntree in num_trees) {
 	fit <- train( vri~., 
                       data= scaled_data_cleaned, 
@@ -531,8 +531,8 @@ for (i in c(1:length(modellist))) {
 
 ## https://cran.r-project.org/web/packages/permimp/vignettes/permimp-package.html
 
-set.seed(388)
-optimal_rf <- randomForest(vri ~ ., data= scaled_data_cleaned, mtry = 2, keep.forest = TRUE, keep.inbag = FALSE, ntree= 200)
+set.seed(3888)
+optimal_rf <- randomForest(vri ~ ., data= scaled_data_cleaned, mtry = 2, keep.forest = TRUE, keep.inbag = FALSE, ntree= 300)
 ## compute permutation importance
 rf_permimp <- permimp(optimal_rf, progressBar = FALSE, conditional = TRUE,scaled = TRUE, thresholdDiagnostics = TRUE,type="response",do_check = FALSE)
 
@@ -578,6 +578,47 @@ box <- box %>% add_boxplot(x = total_lag_df$LagEuclideanDistance, boxpoints = "a
 box <- box %>% add_boxplot(x = total_lag_df$LagMinkowskiDistanceP3, boxpoints = "all", jitter = 0.3, name = "Minkowski Distance (P=3)")
 box <- box %>% layout(title = "Box Plot of Lag Between 1st and 2nd Dose")
 box
+```
+
+
+```{r}
+#VRI 
+start <- min(covid$date[!is.na(covid$people_vaccinated)])
+end <- start %m+% months(4)
+
+r_list4 = ct_model(covid[start <= covid$date & covid$date < end, ], log.y = FALSE, model = "logis")
+temp_data <- data.frame(bind_rows(r_list4$vri_data))
+temp_data <- data.frame(vri4 = temp_data$vri, temp_data %>% select(-vri))
+vri_data <- temp_data
+
+
+start <- min(covid$date[!is.na(covid$people_vaccinated)])
+start <- start %m+% months(4)
+end <- start %m+% months(8)
+
+r_list8 = ct_model(covid[start <= covid$date & covid$date < end, ], log.y = FALSE, model = "logis")
+temp_data <- data.frame(bind_rows(r_list8$vri_data))
+temp_data <- data.frame(vri8 = temp_data$vri, location = temp_data$location)
+vri_data <- merge(vri_data, temp_data, by = "location")
+
+start <- min(covid$date[!is.na(covid$people_vaccinated)])
+start <- start %m+% months(8)
+
+r_listf = ct_model(covid[start <= covid$date & covid$date < end, ], log.y = FALSE, model = "logis")
+temp_data <- data.frame(bind_rows(r_listf$vri_data))
+temp_data <- data.frame(vrif = temp_data$vri, location = temp_data$location)
+vri_data <- merge(vri_data, temp_data, by = "location")
+
+# Example of use, inspect the r_list to see what's included
+
+head(vri_data)
+
+
+
+
+
+
+
 ```
 
 
