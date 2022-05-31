@@ -30,10 +30,8 @@ knitr::opts_chunk$set(
 library(tidyverse)
 library(kableExtra)
 library(DT)
-library(tidyr)
 library(plotly)
 library(readxl)
-library(tibble)
 library(ggthemes)
 
 library(viridis) # Color gradients
@@ -62,7 +60,6 @@ Bibliographies will be included automatically at the end before appendix. Copy p
 
 Examples of how to reference bib entries in-text (check the rmd file):
 
-- Garth reference: [@RN83]
 - `tidyverse` reference: [@tidyverse]
 
 ## Sections cross-referencing
