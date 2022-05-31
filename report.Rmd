@@ -31,15 +31,12 @@ library(tidyverse)
 library(kableExtra)
 library(DT)
 library(tidyr)
-library(dplyr)
-library(ggplot2)
 library(plotly)
 library(readxl)
 library(tibble)
 library(ggthemes)
 library(maps)
 
-library(plotly) # Interactive data visualizations
 library(viridis) # Color gradients
 library(lubridate)
 library(qtlcharts) # Interactive scatter plots 
@@ -311,6 +308,7 @@ policy_data <- merge(policy_data, policy, by.x = c('iso_code', "date", "location
 ```
 
 ```{r}
+#The 'get slope' function was created to calculate the slope of each country's vaccination policy from stage 1 to stage 5. The slope is calculated using the lm function. This is then extracted and stored in a slope. The slope is essentially the speed of vaccination uptake with respect to the vaccination policy, which is then compared to other countries in a graph.
 get_slope <- function(country_data, country_policy, country) {
   i = 1
   country_slope <- data.frame(policy = as.factor(1:5), speed = rep(0, 5), country = rep(country, 5))
