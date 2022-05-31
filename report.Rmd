@@ -34,6 +34,8 @@ library(tidyr)
 library(dplyr)
 library(ggplot2)
 library(plotly)
+
+source("data/ct_model.R")
 ```
 
 # Guide for RMarkdown report (remove for final report)
@@ -198,7 +200,7 @@ while (p <= 3){
     
     for (i in 1:nrow(combined_matrix)){
       if (i == 1){
-        } else{
+      } else{
         if (combined_matrix[i,1] == 0){
           combined_matrix[i,1] = combined_matrix[i-1, 1]
         }
@@ -207,7 +209,7 @@ while (p <= 3){
     
     for (j in 1:nrow(combined_matrix)){
       if (j == 1){
-        } else{
+      } else{
         if (combined_matrix[j,2] == 0){
           combined_matrix[j,2] = combined_matrix[j-1, 2]
         }
