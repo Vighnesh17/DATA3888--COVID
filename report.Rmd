@@ -485,7 +485,7 @@ num_trees <- c(100,150,200,250,300,350,400,450,500)
 #control <- trainControl(method="cv", number=3, search="grid")
 grid_param <- expand.grid(.mtry=mtry)
 modellist <- list()
-set.seed(388)
+set.seed(3888)
 for (ntree in num_trees) {
 	fit <- train( vri~., 
                       data= scaled_data_cleaned, 
@@ -530,8 +530,8 @@ for (i in c(1:length(modellist))) {
 
 ## https://cran.r-project.org/web/packages/permimp/vignettes/permimp-package.html
 
-set.seed(388)
-optimal_rf <- randomForest(vri ~ ., data= scaled_data_cleaned, mtry = 2, keep.forest = TRUE, keep.inbag = FALSE, ntree= 200)
+set.seed(3888)
+optimal_rf <- randomForest(vri ~ ., data= scaled_data_cleaned, mtry = 2, keep.forest = TRUE, keep.inbag = FALSE, ntree= 300)
 ## compute permutation importance
 rf_permimp <- permimp(optimal_rf, progressBar = FALSE, conditional = TRUE,scaled = TRUE, thresholdDiagnostics = TRUE,type="response",do_check = FALSE)
 
