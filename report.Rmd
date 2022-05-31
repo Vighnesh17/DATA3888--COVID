@@ -358,8 +358,9 @@ for (country in countries) {
   country_slope <- rbind(country_slope, temp_slope)
 }
 
+country_slope$policy <- as.factor(country_slope$policy)
 #plot the
-global <- ggplot(data = country_slope, aes(x = country, y = speed, fill = as.factor(policy))) + 
+global <- ggplot(data = country_slope, aes(x = country, y = speed, fill = policy)) + 
   geom_bar(stat="identity", position=position_dodge()) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + 
   scale_y_sqrt() + 
@@ -368,7 +369,7 @@ global <- ggplot(data = country_slope, aes(x = country, y = speed, fill = as.fac
   ylab("Slope") + 
   labs(fill = "Avalability stage")
 
-global
+ggplotly(global)
 ```
 
 #### VRI
