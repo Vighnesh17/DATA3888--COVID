@@ -107,6 +107,20 @@ mtcars %>%
 
 # Data Background
 
+```{r data-loadin}
+covid_data = read.csv("data/covid_data_latest.csv")
+covid_data$date = ymd(covid_data$date)
+
+policy = read.csv("data/covid-vaccination-policy.csv")
+policy$Day = ymd(policy$Day)
+policy$vaccination_policy = as.factor(policy$vaccination_policy)
+
+happiness = read.csv("data/happiness-cantril-ladder.csv")
+ghs = read.csv("data/2021-GHS-Index-April-2022.csv")
+corruption = read.csv("data/CPI2020_GlobalTablesTS_210125.xlsx")
+```
+
+
 
 # Methods
 
