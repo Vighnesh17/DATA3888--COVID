@@ -115,63 +115,79 @@ shinyUI(
             fluidPage(
                 h2("Additional information"),
                 strong("Disclaimer:"),
-                tags$div("All data, including country and region boundaries, are from third parties and does not represent any political affiliation of the members of this group."),
-                br(),
-                strong("Data Source:"),
-                tags$div("Our covid data, vaccination policy data and satisfaction 2021 data are from Our World in Data. Corruption data is from Transparency International 2021 and GHS data is from 2021 Global Health. The national borders data are from Natural Earth and do not represent any political position of the group."),
-                br(),
-                strong("Vaccination Rollout Policy Stages:"),
-                p("The tab in our Shiny App ",em("Rollout Policy Stages"),"shows the coverage for the chosen country. The data for this plot is taken from our additional dataset Vaccine Rollout Stages and this shows the coverage of vaccines for the chosen country. ",
+                p("All data, including country and region boundaries, are from third parties and does not represent any political affiliation of the members of this group."),
 
-                    "0 - No availability", br(),
-                    "1 - Availability for ONE of the following: key workers/ clinically vulnerable groups / elderly groups", br(),
-                    "2 - Availability for TWO of the following: key workers/ clinically vulnerable groups / elderly groups", br(),
-                    "3 - Availability for ALL the following: key workers/ clinically vulnerable groups / elderly groups", br(),
-                    "4 - Availability for all three, plus partial additional availability (select broad groups/ages", br(),
-                    "5 - Universal availability"
+                strong("Data Sources:"),
+                br(),
+                p("Our COVID-19 data is from the", tags$a(href = "https://github.com/owid/covid-19-data/tree/master/public/data", "Our World in Data (OWID) GitHub repository"), "and the policy data is from the", tags$a(href = "https://ourworldindata.org/covid-vaccination-policy", "OWID website."), "The regional boundaries in the interactive world map are from", tags$a(href = "https://www.naturalearthdata.com/downloads/50m-cultural-vectors/50m-admin-0-countries-2/", "Natural Earth"), "and do not represent any political position of the group."),
+
+                strong("Vaccination Rollout Policy Stages:"),
+                br(),
+                p("The tab in our Shiny App ",em("Rollout Policy Stages"),"shows the vaccnation speed (people per day) for each vaccine rollout policy (availability) stage in the chosen country. The stages are:"),
+                  tags$ul(
+                      tags$li("0 - No availability (not shown in graph)"),
+                      tags$li("1 - Availability for ONE of the following: key workers/ clinically vulnerable groups / elderly groups"),
+                      tags$li("2 - Availability for TWO of the following: key workers/ clinically vulnerable groups / elderly groups"),
+                      tags$li("3 - Availability for ALL the following: key workers/ clinically vulnerable groups / elderly groups"),
+                      tags$li("4 - Availability for all three, plus partial additional availability (select broad groups/ages)"),
+                      tags$li("5 - Universal availability")
+                  ),
+
+                strong("Corruption Perceptions Index (CPI): "),
+                p("The overall corruption score is from", tags$a(href="https://www.transparency.org/en/cpi/2021", "Transparency International"), ", where"),
+                tags$ul(
+                    tags$li("0 signifies Highest Corruption Perception"),
+                    tags$li("100 signifies the Lowest Corruption Perception")
                 ),
-                strong("Corruption Perceptions Index: "),
-                p("1. 0 Signifies Highest Corruption Perception"),
-                p("2. 100 Signifies the Lowest Corruption Perception "),
                 
                 strong("Distance Metrics Used for Time Lag: "),
                 withMathJax(),
-                p("In our analysis, we use distance metrics to determine the difference between two time series attributes.The values for the 3 different metrics used can be viewed in the tab", em("Time Lag Table"),"for each country"),
-                helpText("1. Euclidean Distance - Used to calculate the distance between two points on a plane (x1,y1) and (x2,y2).)
-                  The formula is: \\(\\sqrt{(x1-x2)^2 - (y1-y2)^2}\\) "),
+                p("In our analysis, we use distance metrics to determine the difference between two time series attributes. The values for the 3 different metrics used can be viewed in the tab", em("Time Lag Table"),"for each country."),
+                tags$ol(
+                    tags$li("Euclidean Distance - Used to calculate the distance between two points on a plane \\((x_1,y_1)\\) and \\((x_2,y_2)\\).", br(),
+                            "The formula is: \\(\\sqrt{(x_1-x_2)^2 - (y_1-y_2)^2}\\)"),
+                    br(),
+                    tags$li("Manhattan Distance - Generally preferred for finding the distance between two points when in a grid like a plane.", br(),
+                            "We use the Manhattan distance since studies show that it is the better measure for higher dimension data and helps our analysis see whether we are being affected by the curse of dimensionality.", br(),
+                            "The formula is: \\(d =  \\Sigma_{i=1}^{N} \\lvert x_i - y_i\\rvert\\)")
+                ),
                 
-                helpText("2. Manhattan Distance-  It is an another distance metric which is generally preferred to find the distance between two points when in a grid like plane.
-                         We use the Manhattan distance since studies show that it is the better measure for higher dimension data and helps our analysis see whether we are being affected by the curse of dimensionality
-                         The formula is : \\(d =  \\Sigma_{i=1}^{N} \\lvert xi - yi\\rvert\\)"),
+                strong("Vaccine Rollout Index:"),
+                p("The equations used to calculate VRI are from", tags$a(href = "https://www.mdpi.com/2076-393X/10/2/194/html", "Kazemi, M., Bragazzi, N. L., & Kong, J. D. (2022) on MDPI"), ", where VRI is defined as
+                  $$VRI=r\\cdot \\frac{d}{N} \\quad,$$
+                  where",
+                  tags$ul(
+                      tags$li("\\(r\\) is the vaccination uptake rate, taken from a logsitic regression model as explained below"),
+                      tags$li("\\(d\\) is the total number of people vaccinated at the end of the time period"),
+                      tags$li("\\(N\\) is the total population")
+                      
+                  ),
+                  "Therefore, the \\(d/N\\) measures the coverage of vaccination while the \\(r\\) measures the speed."),
                 
-                strong("Vaccine Rollout Index:  "),
-                helpText("The VRI is defined as \\(vri=r\\cdot \\frac{d}{N}\\), whereby, 
-                  r is the vaccination uptake rate,
-                  d is the number of people vaccinated, 
-                  and N is the population[no.]. 
-                  The d/N measures the coverage of vaccination while the r measures the speed. 
-                  ",br(), "Vaccine Uptake or 'r' in our calculation is defined as the number of people vaccination during a time period as a fraction of the country's population and this rate has been estimated using 
-                         a Logistic Growth Model and Asymptotic Regression which can be viewed in the Shiny app under the tab "), em("Vaccination Trend"),
-                br(),
+                p("Vaccine Uptake or \\(r\\) in our calculation is estimated from a Logistic Growth Model
+                  $$c(t) = \\frac{K}{1 + ae^{-rt}} \\quad,$$
+                  where",
+                  tags$ul(
+                      tags$li("\\( c(t) \\) is the people vaccinated as a function of time \\(t\\) (days from the first date there is data for people vaccinated in a that country)"),
+                      tags$li("\\( K \\) is the y-asymptote (max people vaccinated if \\(c(t)\\) were to reach a plateau"),
+                      tags$li("\\( a \\) is a constant")
+                  ),
+                  "The fittness of the model is visualised in the this app under the tab ", em("Vaccination Trend.")),
                 
                 
-                
-                
-                
-                
+                ## References
                 hr(),
                 h2("References"),
                 tags$ul(
-                    tags$li(
-                        tags$a(href = "https://ourworldindata.org/", "Our World Data")
+                    tags$li("Main COVID-19 data source:",
+                        tags$a(href = "https://ourworldindata.org/", "Our World in Data (OWID)")
                     ),
-                    tags$li(
+                    tags$li("Corruption score (CPI) data source:",
                         tags$a(href="https://www.transparency.org/en/cpi/2021", "Transparency International")
                     ),
-                    tags$li(
+                    tags$li("GHI data source:",
                         tags$a(href="https://www.ghsindex.org/", "2021 Global Health Security Index")
-                    )
-                    ,
+                    ),
                     tags$li(
                         tags$a(href="https://medium.com/@kunal_gohrani/different-types-of-distance-metrics-used-in-machine-learning-e9928c5e26c7", "Distance Metrics")
                     )

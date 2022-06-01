@@ -275,7 +275,7 @@ shinyServer(function(input, output) {
             geom_col(aes(fill = stage), position = "dodge") +
             labs(x = "Vaccine Rollout Policy stage",
                  y = "Rate of people vaccinated (per day)",
-                 title = paste0("Vaccination Uptake Rate (",country_name,")")) +
+                 title = paste0("Vaccination Speed (",country_name,")")) +
             scale_fill_discrete(name = "Stage")
         ggplotly(gg, tooltip = c("x", "y")) %>% 
             layout(title = list(xanchor = "center", x = 0.5),
