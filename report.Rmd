@@ -385,7 +385,7 @@ $K$ is the number of people vaccinated at the end of the date recorded (the asym
 $r$ is the vaccination uptake rate. 
 The $r$ is estimated from the inverse of the parameter `scal` of the non-linear least squares model fitted in `R`.
 
-### Asympotic regression
+### Asymptotic regression
 
 Another approach is investigated to estimate the vaccination uptake rate. The log of the people vaccinated attribute is similar to an asymptotic regression, where the rate of change is a function of the log people vaccinated: 
 
