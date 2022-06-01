@@ -66,7 +66,7 @@ To ensure clarity in the analysis process, the following schematic diagram shows
 
 # Background and Motivation
 
-The first COVID-19 vaccine was administered on 8th December 2021 and since then, COVID-19 vaccines have been developed and administered to the public. There has been strong evidence of the success of COVID-19 vaccines in reducing fatalities, severe infections, and hospitalisations (Deb et al., 2021). Given the effectiveness of vaccines, it is appropriate to evaluate  the potential factors affecting speed and coverage of the vaccine rollout. If certain demographic, socio-economic or health factors can be shown to have an influence on vaccine rollout, it can help address efforts to improve vaccine uptake outcomes.
+The first COVID-19 vaccine was administered on 8th December 2021 and since then, COVID-19 vaccines have been developed and administered to the public. There has been strong evidence of the success of COVID-19 vaccines in reducing fatalities, severe infections, and hospitalisations [@Deb]. Given the effectiveness of vaccines, it is appropriate to evaluate  the potential factors affecting speed and coverage of the vaccine rollout. If certain demographic, socio-economic or health factors can be shown to have an influence on vaccine rollout, it can help address efforts to improve vaccine uptake outcomes.
  
 One factor that affected the speed at which the vaccinated population was provided full immunity by the COVID-19 vaccines is that the vaccines were designed to be administered in multiple doses. One dose provides partial immunity and, after a length of time, an additional dose is required to achieve full immunity. The delay in achieving full immunity is a key factor in how quickly full immunity can be provided to a population, influencing the effectiveness of a multiple dose rollout.
 
@@ -88,7 +88,7 @@ corruption = read_xlsx("data/CPI2020_GlobalTablesTS_210125.xlsx", sheet=1, skip=
 source("data/ct_model.R")
 ```
 
-The COVID-19 time-series dataset provided by the ‘Our World in Data’ online publication (Ritchie et al, 2022) was the primary dataset analyzed. This dataset contains data on 207 countries, with measured attributes such as COVID-19 cases, deaths, tests, hospitalisations and vaccinations. A COVID vaccination policy dataset (Ritchie et al., 2022) was used  for the analysis in this report, providing time-series data for COVID-19 vaccination availability in 207 countries, represented as a categorical index.
+The COVID-19 time-series dataset provided by the ‘Our World in Data’ online publication [@owidcoronavirus] was the primary dataset analyzed. This dataset contains data on 207 countries, with measured attributes such as COVID-19 cases, deaths, tests, hospitalisations and vaccinations. A COVID vaccination policy dataset [@owidcoronavirus] was used  for the analysis in this report, providing time-series data for COVID-19 vaccination availability in 207 countries, represented as a categorical index.
 The following datasets were used to supplement the analysis of the factors affecting the vaccine rollout:
 1. The Global health security (GHS) index data, was sourced from the GHS index repository. It measures the capacity for 195 countries to prepare for pandemics from 2021 to 2022. 
 
@@ -305,7 +305,9 @@ get_slope <- function(country_data, country_policy, country) {
 }
 ```
 
-```{r availability_graph, fig.cap = "The vaccination speed for different policy periods for selected countries"}
+\@ref(fig:availability-graph)
+
+```{r availability-graph, fig.cap = "The vaccination speed for different policy periods for selected countries"}
 country_slope = NULL
 #loop through the countries in the dataset and subset the required variables in another dataframe
 for (country in countries) {
