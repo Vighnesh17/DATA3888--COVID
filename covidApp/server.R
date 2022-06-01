@@ -189,19 +189,44 @@ shinyServer(function(input, output) {
         # create time series
         subset.xts = xts(cbind( r_list$y.real[[idx]], fitted(r_list$fit[[idx]]) ), 
                          order.by = r_list$date[[idx]])
-        names(subset.xts) = c("Real", "Fitted")
         
-        # time series plot of var vs time (time series)
-        subset.xts %>% 
-            dygraph(main = paste0("People Vaccinated Trend (",country_name,")")) %>% 
-            dySeries("Fitted", color = "red", strokePattern = "dashed") %>% 
-            dyRangeSelector() %>% 
-            dyHighlight()
+        if (ncol(subset.xts) == 2) {
+            names(subset.xts) = c("Real", "Fitted") 
+            # time series plot of var vs time (time series)
+            subset.xts %>% 
+                dygraph(main = paste0("People Vaccinated Trend (",country_name,")")) %>% 
+                dySeries("Fitted", color = "red", strokePattern = "dashed") %>% 
+                dyRangeSelector() %>% 
+                dyHighlight()
+            # if fit is NULL (logistic fit failed, model2="none"), xts only has one column
+        } else if (ncol(subset.xts) == 1) {
+            names(subset.xts) = c("Real")
+            # time series plot of var vs time (time series)
+            subset.xts %>% 
+                dygraph(main = paste0("People Vaccinated Trend (",country_name,")")) %>% 
+                dyRangeSelector() %>% 
+                dyHighlight()
+        }
+        
     })
     
     # render time series plot under map, right panel
     output$timePlot_click <- renderDygraph({
         logistic_timePlot()
+    })
+    
+    # warning above fit time series if not enough data for a logistic fit
+    output$warning_logistic <- renderText({
+        iso = click_iso()
+        country_name = click_countryname()
+        validate(
+            need( (iso %in% r_list$iso_code), "" )
+        )
+
+        idx = which(r_list$iso_code == iso)
+        if (is.null(r_list$fit[[idx]])) {
+            print("There is not enough data to fit the logistic growth model.")
+        }
     })
     
     ## barplot? for vaccine rollout speed, each policy stage
@@ -217,7 +242,8 @@ shinyServer(function(input, output) {
         # validate the iso code of country clicked is have data on people_vaccinated and policy
         validate(
             need( (iso %in% r_list$iso_code), paste0("There was no vaccination data for ",country_name,".") ),
-            need( (iso %in% policy$Code), paste0("There was no policy data for ",country_name,".") )
+            need( (iso %in% policy$Code), paste0("There was no policy data for ",country_name,".") ),
+            need( (!is.null(r_list$fit[[which(r_list$iso_code == iso)]])), paste0("There was no enough data for ",country_name," to fit logistic model.") )
         )
         
         policy_subset = covid_policy %>% 

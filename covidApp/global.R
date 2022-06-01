@@ -24,24 +24,40 @@ library(rgdal)
 
 ## FASTER, load in snapshot of covid_data, iso_data, countries geo data, policy
 # save(covid_data, countries, policy, file = "covidApp/data/snapshot.RData")
-load("data/snapshot.RData")
+# load("data/snapshot.RData")
 
 # load in geojson polygons for countries
 # countries = rgdal::readOGR("data/ne_50m_admin_0_countries", layer = "ne_50m_admin_0_countries")
 
 ## load in availability data
 # policy <- read.csv("data/covid-vaccination-policy.csv")
-policy$Day = ymd(policy$Day)
-policy$vaccination_policy = as.factor(policy$vaccination_policy)
+# policy$Day = ymd(policy$Day)
+# policy$vaccination_policy = as.factor(policy$vaccination_policy)
+# 
+# covid_data = covid_data %>%
+#   mutate(
+#     date = ymd(date)
+#   )
+# 
+# # merge covid_data with policy
+# covid_policy = full_join(covid_data, select(policy, -Entity),
+#                          by = c("iso_code" = "Code", "date" = "Day"))
 
-covid_data = covid_data %>% 
-  mutate(
-    date = ymd(date)
-  )
 
-# merge covid_data with policy
-covid_policy = full_join(covid_data, select(policy, -Entity), 
-                         by = c("iso_code" = "Code", "date" = "Day"))
+# calculate VRI -----------------------------------------------------------
+
+# ## function to find r and vri, data cleaning included in function
+source("ct_model.R")
+
+# ## calculate VRI
+# r_list = ct_model(covid_data, log.y = FALSE, model = "logis", model2 = "custom.start", scal.start = 4, lrc.start = -5)
+
+# ----
+
+## save all cleaned data into RData, load in when app is run
+# WARNING: make sure work space is clean before saving
+# save.image(file = "data/snapshot.RData")
+load("data/snapshot.RData")
 
 ## numerical variables
 # num_vars = colnames(covid_data)[sapply(covid_data, is.numeric)]
@@ -62,125 +78,10 @@ loc_all = covid_data %>%
 
 # VRI ---------------------------------------------------------------------
 
-## VRI calculation
-# function to find r and vri, data cleaning included in function
-ct_model = function(df, log.y = FALSE, model = c("logis", "asymp", "linear"), model2 = "none") {
-  # cleaning
-  covid_clean = df %>% 
-    filter(str_length(iso_code) <= 3) %>% 
-    select(iso_code, location, date, people_vaccinated, population, aged_65_older, gdp_per_capita, cardiovasc_death_rate, population_density, hospital_beds_per_thousand, human_development_index, extreme_poverty, diabetes_prevalence, life_expectancy) %>% 
-    filter(people_vaccinated != 0 & !is.na(people_vaccinated)) %>% 
-    group_by(location) %>% 
-    mutate(t_days = difftime(date, min(date), units = "days") %>% as.integer())
-  
-  # initiate r_list, to store location, r, fit, ... respectively
-  r_list = list("location" = c(), "r" = c(), "fit" = c(), "y.real" = c(), "date" = c(), "t_days" = c(), "vri_data" = c(), "iso_code" = c())
-  
-  ## formulae, based on selected model, people_vaccinated, and log.y
-  if (log.y) {
-    f2 = formula(log(people_vaccinated) ~ t_days)
-    # models
-    if (model == "logis") {
-      f1 = formula(log(people_vaccinated) ~ SSlogis(t_days, Asym, xmid, scal))
-    } else if (model == "asymp") {
-      f1 = formula(log(people_vaccinated) ~ SSasymp(t_days, Asym, R0, lrc))
-    }
-  } else {
-    f2 = formula(people_vaccinated ~ t_days)
-    # models
-    if (model == "logis") {
-      f1 = formula(people_vaccinated ~ SSlogis(t_days, Asym, xmid, scal))
-    } else if (model == "asymp") {
-      f1 = formula(people_vaccinated ~ SSasymp(t_days, Asym, R0, lrc))
-    }
-  }
-  
-  ## for each country (location)
-  for (loc in unique(covid_clean$location)) {
-    # subset cleaned data to one country
-    covid_subset = covid_clean %>% filter(location == loc) %>% ungroup()
-    iso = unique(covid_subset$iso_code)
-    
-    # try to fit model
-    fit = tryCatch(
-      # main function, fit asymptote regression model
-      expr = {
-        if (model == "linear") {
-          lm(f2, data = covid_subset)
-        } else {
-          nls(f1, data = covid_subset)
-        }
-      },
-      # if error, fit linear model
-      error = function(error_message){
-        if (model2 == "linear") {
-          return( lm(f2, data = covid_subset) )
-        } else if (model2 == "none") {
-          return( NULL )
-        }
-      }
-    )
-    
-    # calculate my r value, cannot compare between different models
-    if (class(fit) == "lm") {    # if fit is linear 
-      r = coef(fit)["t_days"]
-    } else if (class(fit) == "nls") {    # if fit is non-linear
-      
-      # if fit is logistic, r = 1/scal
-      if (model == "logis") { scal = coef(fit)["scal"]
-      r = 1/scal
-      # if fit is asymptotic, r = e^lrc
-      } else if (model == "asymp") { lrc = coef(fit)["lrc"]
-      r = exp(lrc)
-      }
-      
-    } else if (class(fit) == "NULL") {    # if fit is NULL (model2="none")
-      r = NA
-    }
-    
-    # vri = r * last people_vaccinated / end population
-    last_entry = tail(covid_subset, 1)
-    vri = r * last_entry$people_vaccinated / last_entry$population
-    
-    median_data = covid_subset %>% 
-      select(-date, -t_days, -location, -iso_code, -people_vaccinated) %>% 
-      summarise(across(everything(), median, na.rm = TRUE))
-    
-    vri_data = median_data %>% 
-      mutate(iso_code = iso, location = loc, vri = vri, .before = 1)
-    
-    r_list[[1]] = c(r_list[[1]], loc)
-    r_list[[2]] = c(r_list[[2]], r)
-    r_list[[3]] = c(r_list[[3]], list(fit))
-    r_list[[4]] = c(r_list[[4]], list(covid_subset$people_vaccinated))
-    r_list[[5]] = c(r_list[[5]], list(covid_subset$date))
-    r_list[[6]] = c(r_list[[6]], list(covid_subset$t_days))
-    r_list[[7]] = c(r_list[[7]], list(vri_data))
-    r_list[[8]] = c(r_list[[8]], iso)
-  }
-  
-  ## Measuring model fitness, root mean standard error (RMSE).
-  for (i in seq_len(length(r_list$fit))) {
-    if ( is.null(r_list$fit[[i]]) ) {
-      r_list$rse[[i]] = NA
-    } else if (log.y) {
-      # residuals = real - fitted
-      resid = r_list$y.real[[i]] - exp(fitted(r_list$fit[[i]]))
-      # degrees of freedom = n - k - 1, k = number of parameters
-      df = summary(r_list$fit[[i]])$df[2]
-      r_list$rse[[i]] = (sum(resid^2)/df)^(1/2)
-    } else {
-      r_list$rse[[i]] = sigma(r_list$fit[[i]])
-    }
-  }
-  
-  return(r_list)
-}
-
-r_list = ct_model(covid_data, log.y = FALSE, model = "logis")
-
+## combine VRI with countries geo data
+# all variables pre-loaded in previous section
 # collect all countries
-vri_data = bind_rows(r_list$vri_data) %>% bind_cols(r = r_list$r)
+vri_data = bind_rows(r_list$vri_data)
 
 # scale vri?
 vri_data$vri_scaled = sigmoid::sigmoid(vri_data$vri, SoftMax = TRUE)
@@ -193,14 +94,6 @@ bins = c(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
 # palette function, test on HDI, later change to VRI
 pal = colorBin("YlOrRd", domain = vri_data$vri_scaled, bins = bins, reverse = TRUE)
 # pal = colorBin("RdYlGn", domain = vri_data$vri_scaled, bins = bins)
-
-## time range
-first_vriDate = covid_data$date[!is.na(covid_data$new_vaccinations)] %>% 
-  min() %>% floor_date(unit = "month")
-last_vriDate = covid_data$date[!is.na(covid_data$new_vaccinations)] %>% 
-  max() %>% floor_date(unit = "month")
-vriDate_choices = seq.Date(first_vriDate, last_vriDate, "month")
-vriDate_choices_char = vriDate_choices %>% as.character.Date(format = "%b %Y")
 
 
 # Time Lag ----------------------------------------------------------------

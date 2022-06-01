@@ -62,6 +62,7 @@ shinyUI(
                                    "Time Lag Graph (1st vs 2nd Dose)",
                                    column(12,
                                           align = "center",
+                                          br(),
                                           tableOutput("timeLag_value"),
                                           dygraphOutput("timeLag_timePlot")
                                           )
@@ -83,12 +84,13 @@ shinyUI(
                                type = "tabs",
                                tabPanel(
                                    "Vaccination trend",
-                                   # selectInput("model_dropdown",
-                                   #             label = "Regression model to fit",
-                                   #             choices = c("Logistic Regression",
-                                   #                         "Asymptotic Regression"),
-                                   #             selected = "Logistic Regression"),
-                                   dygraphOutput("timePlot_click")
+                                   column(12,
+                                          align = "center",
+                                          br(),
+                                          textOutput("warning_logistic"),
+                                          br(),
+                                          dygraphOutput("timePlot_click")
+                                          )
                                ),
                                tabPanel(
                                    "Rollout policy stages",
