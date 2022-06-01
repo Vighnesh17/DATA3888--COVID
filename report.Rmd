@@ -52,93 +52,14 @@ library(deSolve)
 library(permimp) # for calculating conditional importance in a speedy way
 ```
 
-<!-- # Guide for RMarkdown report (remove for final report) -->
-
-<!-- ## Bibliographies in RMarkdown -->
-
-<!-- - `references.bib`: for BibTeX of all sources you wish to reference -->
-
-<!-- - `references-pkg.bib`: for BibTeX of all packages used in the report -->
-
-<!-- Bibliographies will be included automatically at the end before appendix. Copy paste `bib` or `BibTeX` text from your sources into the file `references.bib` following the example format, leaving an empty line between entries. Name it however you want in the first line after `@document-format{` like in the example. For any package you are using, if there isn't already an entry for it in the bib file, then use the function `citation("package-name")` in R console and copy the `BibTeX` entry from the output, paste it into `references-pkg.bib`. -->
-
-<!-- Examples of how to reference bib entries in-text (check the rmd file): -->
-
-<!-- - `tidyverse` reference: [@tidyverse] -->
-
-<!-- ## Sections cross-referencing -->
-
-<!-- You can cross-reference to sections, so that the link point to the relevant heading (check the rmd file): -->
-
-<!-- - use `{#section-id}` after heading to label the section followed, where `section-id` is user-defined and acts as the identifier of the section -->
-
-<!-- - use `\@ref(section-id)` or `\@ref(section-heading)` if there is no identifier, to refer to the section you want to link to -->
-
-<!-- Examples (check rmd file): -->
-
-<!-- - this text refers to the appendix A with the heading "Code" (Appendix @ref(code)) -->
-
-<!-- - this text refers to the section labelled with *id* `vri` (Section @ref(vri)) -->
-
-<!-- - this text refers to the section "Data Background" (Section @ref(data-background)) -->
-
-<!-- *Note this will only show the number of the section, you have to put "Section"/"Appendix" before the `\@ref(...)` as well.* -->
-
-<!-- ## Figures/Tables cross-referencing -->
-
-<!-- - use `\@ref(fig:chunk-name)` to refer to figure output by the chunk named as `chunk-name` -->
-
-<!-- - use `\@ref(tab:chunk-name)` to refer to the table output by the chunk named as `chunk-name` -->
-
-<!-- Here is an example plot with caption and its in-text reference (check rmd file): -->
-
-<!-- - Figure @ref(fig:example-plot).  -->
-
-<!-- *Note this will only show the number (default format: section-num.figure-num), you have to put "Figure" before the `\@ref(fig:..)` as well.* -->
-
-<!-- ```{r example-plot, fig.cap="Example plot"} -->
-
-<!-- # example plot -->
-
-<!-- # mtcars %>%  -->
-
-<!-- #   rownames_to_column("car") %>%  -->
-
-<!-- #   as_tibble() %>%  -->
-
-<!-- #   ggplot() + -->
-
-<!-- #   aes(x = factor(cyl), y = disp, colour = factor(cyl)) + -->
-
-<!-- #   geom_boxplot() -->
-
-<!-- ``` -->
-
-<!-- Here is an example table with caption and its in-text reference: -->
-
-<!-- - Table @ref(tab:example-table) -->
-
-<!-- *Note this will only show the number (default format: section-num.table-num), you have to put "Table" before the `\@ref(tab:..)` as well.* -->
-
-```{r example-table}
-# example table
-# mtcars %>% 
-#   kbl(caption = "Example table",
-#       format = "html",
-#       booktabs = TRUE,
-#       row.names = TRUE,
-#       escape = TRUE) %>%
-#   kable_styling(bootstrap_options = c("condensed", "striped", "hover"),
-#                 position = "center") %>%
-#   scroll_box(height = "300px")
-```
 
 # Executive Summary
 
 This report aims to investigate factors that affected the implementation of the global vaccination rollout during the COVID-19 Pandemic. Specifically, this report investigates the time lag between the 1st and 2nd vaccine doses to quantitatively determine the delay in the vaccinated population achieving full immunity. It is found that the majority of country time lags are between 1-2 months, showing that the multiple dose nature of the vaccine rollout causes a considerable delay in achieving full immunity.
-In addition, the influence of various demographic, socio-economic and health factors on vaccination speed and coverage is algorithmically assessed. We found that the log of cardiovasc disease, GHS index and life satisfaction have the greatest influence on the vaccination rollout index, an index that conveys both speed and coverage of the vaccination rollout. 
+In addition, the influence of various demographic, socio-economic and health factors on vaccination speed and coverage is algorithmically assessed. We found that the log of cardiovascular disease, GHS index and life satisfaction have the greatest influence on the vaccination rollout index, an index that conveys both speed and coverage of the vaccination rollout. 
 These results can be utilised by epidemiologists or research students to inform their research into how certain factors can be altered to achieve greater success and efficiency with future vaccine rollouts. The analysis in this report has additionally been represented in an interactive Shiny application.
 To ensure clarity in the analysis process, the following schematic diagram shows the steps undertaken to investigate the two main questions:
+
 
 
 ![Figure 1. The flow chart of the project working process](data/Selection_of_figure.png)
@@ -173,13 +94,15 @@ The following datasets were used to supplement the analysis of the factors affec
 
 2. ‘Our World in Data: Happiness and Life Satisfaction: (Ortiz-Ospina & Roser, 2022)  dataset contains variables providing measures of happiness and life satisfaction on 160 countries.
  
-3. The Corruption Perceptions Index dataset, contains data of perceptions of public sector corruption. The index ranges from 0 to 100, whereby 0 corresponds to maximal corruption. 
+3. The Corruption Perceptions Index dataset contains data of perceptions of public sector corruption. The index ranges from 0 to 100, whereby 0 corresponds to maximal corruption. 
 
 
 # Methods
 
 ## Time lag between 1st and 2nd dose {#time-lag}
-
+To calculate the time lag between a vaccinated population receiving the 1st and 2nd vaccine dose, the distance/difference in days between the people vaccinated (at least 1 vaccine dose) and people fully vaccinated (2 vaccine doses) time-series attributes was calculated. This was achieved by continuously shifting the time-series attribute curves until the curves, which both follow logistic functions, are roughly overlapping. When overlapping occurs, the distance between the two time-series attributes is minimized. The distance that will be used in this analysis is Euclidean distance. The number of times the curves need to be shifted to achieve minimal distance is the difference in days between the two time-series attributes.
+ 
+The time lag will be calculated for each country, during the period of the 1st of February 2021 to the 1st of August 2021, except for a subset of countries that do not have a population greater than 1,500,000 people and whose data on vaccine uptake is not adequate.
 ```{r}
 # smoother function, returns smoothed column
 
@@ -230,6 +153,8 @@ lagValue <- function(FirstDose, SecondDose, windowsize, p)
   return(which.min(dist_vector))
 }  
 ```
+
+
 
 ```{r}
 lag_vector_1 <- c()
@@ -315,9 +240,10 @@ total_lag = cbind(t(lag_df_1), t(lag_df_2), t(lag_df_3))
 colnames(total_lag) = c("LagType", "Lag: Euclidean distance", "LagType", "Lag: Manhattan distance", "LagType", "Lag: Minkowksi distance (P=3)")
 ```
 
+
 ## Vaccine rollout index (VRI) and variable importance {#vri}
 
-#### Exploration
+### Exploration
 
 ```{r}
 # Country list
@@ -877,11 +803,42 @@ vri_eval_table <- datatable(vri_evaluation)
 
 ## Limitations
 
-## Feature Improvements
+1. Some countries, e.g. Democratic Republic of Congo, have excessive missing data for some variables, resulting in an inability to calculate time lags or VRIs, and thus the analysis cannot cover all countries. This effect gets worse as external datasets are added, containing less countries.
+
+2. The discovered factors which affect vaccine uptake may not accurately represent the causal effect, as it’s a model-based result and will change accordingly when new training data, predictors of hyperparameters are given. Further, there may be other factors outside of the used datasets which may also affect vaccine uptake. The problem is that there is no source which contains these variables as comprehensive as the used datasets, which further limits the analysis of the research question. 
+
+3. With an aim of calculating importance instead of predicting VRI, all the data was used as the training set, which could lead to overfitting. 
+
+## Future Improvements
+Collecting additional datasets containing other factors to test their effect on the vaccine uptake, such as type of vaccine, people’s trust in health institutions, public perception and individual lifestyle. Exploring more factors will give us a more holistic analysis on vaccination uptake.
+
+The conditional permutation importance is sensitive to the choice of hyper-parameter and user-defined threshold. Though it’s proved to be hard to set sensible values, one future improvement is to evaluate how changes on these pre-set values affect the final result. 
+
 
 # Conclusion
+The majority of time lags between 1st and 2nd doses are within 1-2 months, demonstrating that there is a considerable delay in achieving full immunity with a multiple dose rollout.
+There is also a significant spread in time lag values, showing that due to factors like choice of vaccine brand, the vaccinated populations of certain countries were exposed to longer time periods of vulnerability.
+The analysis on the influence of demographic, socio-economic and health factors on vaccination speed and coverage found the following factors most influential - the log of cardiovasc disease, GHS index and life satisfaction. This suggests that positive outcomes regarding these factors will correlate with positive vaccination outcomes.
+The constructed Shiny application allows users to compare time lags between countries, trends in vaccination speed and availability of vaccines and the accuracy of the measures of vaccine uptake.
+Future studies can build on this report by integrating new and more diverse data to explore more relationships between vaccination outcomes and various health, demographic and socio-economic factors.
 
-# Student Contributions
+## Student Contributions
+
+David - Contributed to development of ideas for both sub-questions. Formulating and coding the model for calculating the time lags between 1st and 2nd vaccine doses. Coding the visualisations/figures of the results of the time lag model. Data cleaning/pre-processing for the derivation of VRI. Contributed to writing and editing multiple sections of the report and presentation, most notably the time lag method and results section.
+
+Diana - All Shiny app code (reused some code from David when calculating time lag). Code for people vaccinated trend model fitting, $r$ calculation, VRI calculation, and RSE calculation for logistic growth model and asymptotic regression, all done using my function `ct_model` (included in `data/ct_model.R`). Writing the goodness-of-fit evaluation for these two models and the Shiny app part in this report. 
+
+
+Tina - ​​Responsible for the administration role in the team, such as scheduling meetings, and keeping track of meeting minutes.  collaborated with Aurora on the data exploration on the Vaccination Roll Out index, which was calculating and visualising the speed of vaccination policy stage of the countries. Also Worked on formulating the presentation slides and providing the introduction and background of the dataset. For the report, I helped formulate the overall structure and wrote the background, data sourcing and edited various sections of the report.
+
+Sylvia - Researching and proposing the idea of VRI. Sourcing and data cleaning the corruption and satisfaction datasets. Merging all datasets. Coding the RF, including a grid search with 5-fold cv. Calculating and plotting the variable importance. Writing the methods, results and discussion for selecting variables, RF, variable importance and VRI values.
+
+Aurora - Explored methods and models in the early stage, some of them are included in the GitHub branch. Did the exploration of VRI based on vaccination availability policy, and wrote related section. Helped refine the VRI model and code its “Inputs affect Outputs” evaluation. Wrote the evaluation strategy for VRI model in this report. I also drew the Feature selection figure, designed and created the presentation slides, and combining everyone’s code in the final Rmarkdown file.
+
+Harun - Worked on idea for clustering VRI with countries which was not used. Brainstormed and discussed initial ideas with the team and provided ideas on how to approach the question and overall supported the team. Worked on proofreading the report along with writing the limitations and future improvement sections. 
+
+Vighnesh - Contributed to the formulation of VRI. I performed some admin tasks such as maintaining and creating the GitHub and scheduling some meetings to discuss work. Initially i did alot of data cleaning for the OWID data by dividing breaking down the time series information .I came up with our first idea “Creating a preparedness score for each country in COVID” that we decided not to use. I added the Shiny About page to provide metadata to the user.I also helped in the sourcing of external datasets like GHS Index. Lastly I wrote the background information, motivation and Executive Summary for the report.
+
 
 # References
 

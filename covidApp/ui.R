@@ -132,13 +132,6 @@ shinyUI(
                       tags$li("4 - Availability for all three, plus partial additional availability (select broad groups/ages)"),
                       tags$li("5 - Universal availability")
                   ),
-
-                strong("Corruption Perceptions Index (CPI): "),
-                p("The overall corruption score is from", tags$a(href="https://www.transparency.org/en/cpi/2021", "Transparency International"), ", where"),
-                tags$ul(
-                    tags$li("0 signifies Highest Corruption Perception"),
-                    tags$li("100 signifies the Lowest Corruption Perception")
-                ),
                 
                 strong("Distance Metrics Used for Time Lag: "),
                 withMathJax(),
@@ -180,16 +173,13 @@ shinyUI(
                 h2("References"),
                 tags$ul(
                     tags$li("Main COVID-19 data source:",
-                        tags$a(href = "https://ourworldindata.org/", "Our World in Data (OWID)")
+                            tags$a(href = "https://ourworldindata.org/", "Our World in Data (OWID)")
                     ),
-                    tags$li("Corruption score (CPI) data source:",
-                        tags$a(href="https://www.transparency.org/en/cpi/2021", "Transparency International")
+                    tags$li("Distance types description:",
+                            tags$a(href="https://medium.com/@kunal_gohrani/different-types-of-distance-metrics-used-in-machine-learning-e9928c5e26c7", "Different Types of Distance Metrics used in Machine Learning")
                     ),
-                    tags$li("GHI data source:",
-                        tags$a(href="https://www.ghsindex.org/", "2021 Global Health Security Index")
-                    ),
-                    tags$li(
-                        tags$a(href="https://medium.com/@kunal_gohrani/different-types-of-distance-metrics-used-in-machine-learning-e9928c5e26c7", "Distance Metrics")
+                    tags$li("VRI:",
+                            tags$a(href = "https://www.mdpi.com/2076-393X/10/2/194/html", "Assessing Inequities in COVID-19 Vaccine Roll-Out Strategy Programs: A Cross-Country Study Using a Machine Learning Approach")
                     )
                 )
             )
