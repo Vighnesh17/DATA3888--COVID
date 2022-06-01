@@ -135,14 +135,20 @@ library(permimp) # for calculating conditional importance in a speedy way
 
 # Executive Summary
 
-This report aims to investigate factors that affected the implementation of the global vaccination rollout during the COVID-19 Pandemic. Specifically, this report investigates the time lag between the 1st and 2nd vaccine doses to quantitatively determine the delay in the vaccinated population achieving full immunity. It is found that the majority of country time lags are between 1-2 months, showing that the multiple dose nature of the vaccine rollout causes a considerable delay in achieving full immunity. In addition, the influence of various demographic, socio-economic and health factors on vaccination speed and coverage is algorithmically assessed. We found that the log of cardiovasc disease, GHS index and life satisfaction have the greatest influence on the vaccination rollout index, an index that conveys both speed and coverage of the vaccination rollout. These results can be utilised by epidemiologists or research students to inform their research into how certain factors can be altered or improved to achieve greater success and efficiency with future vaccine rollouts. The analysis in this report has additionally been represented in an accessible and interactive Shiny application. To ensure clarity in the analysis process, the following schematic diagram shows the steps undertaken to investigate the two main questions:
+This report aims to investigate factors that affected the implementation of the global vaccination rollout during the COVID-19 Pandemic. Specifically, this report investigates the time lag between the 1st and 2nd vaccine doses to quantitatively determine the delay in the vaccinated population achieving full immunity. It is found that the majority of country time lags are between 1-2 months, showing that the multiple dose nature of the vaccine rollout causes a considerable delay in achieving full immunity.
+In addition, the influence of various demographic, socio-economic and health factors on vaccination speed and coverage is algorithmically assessed. We found that the log of cardiovasc disease, GHS index and life satisfaction have the greatest influence on the vaccination rollout index, an index that conveys both speed and coverage of the vaccination rollout. 
+These results can be utilised by epidemiologists or research students to inform their research into how certain factors can be altered to achieve greater success and efficiency with future vaccine rollouts. The analysis in this report has additionally been represented in an interactive Shiny application.
+To ensure clarity in the analysis process, the following schematic diagram shows the steps undertaken to investigate the two main questions:
+
 
 ![Figure 1. The flow chart of the project working process](data/Selection_of_figure.png)
 
 # Background and Motivation
-The first COVID-19 vaccine was administered on the 8th December 2021 and since then, COVID-19 vaccines have been developed and administered to the public. There has been strong evidence that COVID-19 vaccines have been successful in reducing fatalities, severe infections, and hospitalisations (Deb et al., 2021). Given the effectiveness of vaccines, it is appropriate to evaluate what factors affect the speed and coverage of the vaccine rollout. If certain demographic, socio-economic or health factors can be shown to have an influence on vaccine rollout, it can help to address efforts to improve vaccine uptake outcomes.
+
+The first COVID-19 vaccine was administered on 8th December 2021 and since then, COVID-19 vaccines have been developed and administered to the public. There has been strong evidence of the success of COVID-19 vaccines in reducing fatalities, severe infections, and hospitalisations (Deb et al., 2021). Given the effectiveness of vaccines, it is appropriate to evaluate  the potential factors affecting speed and coverage of the vaccine rollout. If certain demographic, socio-economic or health factors can be shown to have an influence on vaccine rollout, it can help address efforts to improve vaccine uptake outcomes.
  
 One factor that affected the speed at which the vaccinated population was provided full immunity by the COVID-19 vaccines is that the vaccines were designed to be administered in multiple doses. One dose provides partial immunity and, after a length of time, an additional dose is required to achieve full immunity. The delay in achieving full immunity is a key factor in how quickly full immunity can be provided to a population, influencing the effectiveness of a multiple dose rollout.
+
 
 ## Data
 
@@ -160,14 +166,14 @@ corruption = read_xlsx("data/CPI2020_GlobalTablesTS_210125.xlsx", sheet=1, skip=
 
 source("data/ct_model.R")
 ```
-The COVID-19 time-series dataset provided by the ‘Our World in Data’ online publication (Ritchie et al, 2022) was the primary dataset analyzed. This dataset contains data on 207 countries, with measured attributes such as COVID-19 cases, deaths, tests, hospitalisations and vaccinations. A COVID vaccination policy dataset (Ritchie et al., 2022) was also utilized for the analysis in this report, providing time-series data for COVID-19 vaccination availability in 207 countries, represented as a categorical index.
+
+The COVID-19 time-series dataset provided by the ‘Our World in Data’ online publication (Ritchie et al, 2022) was the primary dataset analyzed. This dataset contains data on 207 countries, with measured attributes such as COVID-19 cases, deaths, tests, hospitalisations and vaccinations. A COVID vaccination policy dataset (Ritchie et al., 2022) was used  for the analysis in this report, providing time-series data for COVID-19 vaccination availability in 207 countries, represented as a categorical index.
 The following datasets were used to supplement the analysis of the factors affecting the vaccine rollout:
+1. The Global health security (GHS) index data, was sourced from the GHS index repository. It measures the capacity for 195 countries to prepare for pandemics from 2021 to 2022. 
 
-1. The Global health security (GHS) index data, which was sourced from the GHS index repository. The GHS index measures the capacity for 195 countries to prepare for pandemics from 2021 to 2022. 
-
-2. ‘Our World in Data: Happiness and Life Satisfaction: (Ortiz-Ospina & Roser, 2022)  dataset which contains variables providing measures of happiness and life satisfaction on 160 countries.
+2. ‘Our World in Data: Happiness and Life Satisfaction: (Ortiz-Ospina & Roser, 2022)  dataset contains variables providing measures of happiness and life satisfaction on 160 countries.
  
-3. The Corruption Perceptions Index dataset, which contains data of perceptions of public sector corruption. The index ranges from 0 to 100, whereby 0 corresponds to maximal corruption. (https://www.transparency.org/en/cpi/2020).
+3. The Corruption Perceptions Index dataset, contains data of perceptions of public sector corruption. The index ranges from 0 to 100, whereby 0 corresponds to maximal corruption. 
 
 
 # Methods
