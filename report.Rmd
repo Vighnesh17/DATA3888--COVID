@@ -245,6 +245,8 @@ colnames(total_lag) = c("LagType", "Lag: Euclidean distance", "LagType", "Lag: M
 
 ### Exploration
 
+The vaccine availability policy data for each country contains an index representing which groups of people can access vaccines, with larger index values representing greater access. For each stage of availability, the speed of vaccination was derived using the slope of the number of people vaccinated over time in each period. As evident in the  bar chart \@ref(fig:availability_graph)  above, stages 3 and 4 have the highest speed and stage 5 has a lower speed. Despite stage 5 allowing greater access, this decrease in vaccination speed can be attributed to a significant proportion of the population being already vaccinated in stages 3 and 4. Greater availability doesn’t correlate with higher vaccination speed. Rather, there are other factors that affect vaccination uptake.
+
 ```{r}
 # Country list
 countries = c("United States", "India", "Brazil", "France", "United Kingdom", "Russia", 
@@ -305,7 +307,7 @@ get_slope <- function(country_data, country_policy, country) {
 }
 ```
 
-\@ref(fig:availability-graph)
+
 
 ```{r availability-graph, fig.cap = "The vaccination speed for different policy periods for selected countries"}
 country_slope = NULL
@@ -563,6 +565,8 @@ box
 
 #### Evaluation
 
+Evaluation of model accuracy involved assessing the mean square error (MSE) and the coefficient of determination $R^2$. The MSE measures the closeness between prediction and observed value while $R^2$ represents the proportion of the predictors’ variance explained by our index VRI. The lower the MSE and the higher the $R^2$, the more accurate the model.
+
 ```{r}
 #VRI 
 start <- min(covid_data$date[!is.na(covid_data$people_vaccinated)])
@@ -591,6 +595,8 @@ temp_data <- data.frame(bind_rows(r_listf$vri_data))
 temp_data <- data.frame(vrif = temp_data$vri, location = temp_data$location)
 vri_eva_data <- merge(vri_eva_data, temp_data, by = "location")
 ```
+
+As VRI is highly related to time, the time period chosen can affect results. This concept is explored as: Input affects Output”. The period of time between commencement of vaccinations and the last day recorded varies from 1 to 1.5 years in the covid dataset. Therefore, the dataset was separated into $0-4$ months, $4-8$ months, and $8-latest$ starting on the first day a country had vaccination data. For each selected period, the accuracy was compared using MSE and R squared. 
 
 ```{r}
 # Merge the datasets
@@ -621,6 +627,8 @@ ghs <- ghs %>% mutate(
 joint_data <- merge(joint_data, ghs[,-2],  by.x=c("iso_code"), by.y=c("iso_code"))
 colnames(joint_data)[18] <- "GHS_score"
 ```
+
+The dataset between 4 to 8 months has the highest R squared and lowest MSE, 0.83 and 0.000013. For input between 0 to 4 months and 8 to the latest day, R squared is similar: approximately 0.78. However, the 8-month to latest data has the highest MSE, 0.000031, while 0 to 4 months data’s MSE is 0.000014. Accordingly, it is concluded that the time period of input data does affect model output which is most accurate on data between 4 to 8 months.
 
 ```{r}
 # take log for highly skewed variables
