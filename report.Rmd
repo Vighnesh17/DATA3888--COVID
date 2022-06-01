@@ -1,5 +1,5 @@
 ---
-title: "DATA3888 COVID Report"
+title: "DATA3888 covid_data Report"
 author: '500254239'
 date: "`r format(Sys.time(), '%d %b %Y')`"
 output: 
@@ -52,60 +52,73 @@ library(deSolve)
 library(permimp) # for calculating conditional importance in a speedy way
 ```
 
-# Guide for RMarkdown report (remove for final report)
+<!-- # Guide for RMarkdown report (remove for final report) -->
 
-## Bibliographies in RMarkdown
+<!-- ## Bibliographies in RMarkdown -->
 
-- `references.bib`: for BibTeX of all sources you wish to reference
-- `references-pkg.bib`: for BibTeX of all packages used in the report
+<!-- - `references.bib`: for BibTeX of all sources you wish to reference -->
 
-Bibliographies will be included automatically at the end before appendix. Copy paste `bib` or `BibTeX` text from your sources into the file `references.bib` following the example format, leaving an empty line between entries. Name it however you want in the first line after `@document-format{` like in the example. For any package you are using, if there isn't already an entry for it in the bib file, then use the function `citation("package-name")` in R console and copy the `BibTeX` entry from the output, paste it into `references-pkg.bib`.
+<!-- - `references-pkg.bib`: for BibTeX of all packages used in the report -->
 
-Examples of how to reference bib entries in-text (check the rmd file):
+<!-- Bibliographies will be included automatically at the end before appendix. Copy paste `bib` or `BibTeX` text from your sources into the file `references.bib` following the example format, leaving an empty line between entries. Name it however you want in the first line after `@document-format{` like in the example. For any package you are using, if there isn't already an entry for it in the bib file, then use the function `citation("package-name")` in R console and copy the `BibTeX` entry from the output, paste it into `references-pkg.bib`. -->
 
-- `tidyverse` reference: [@tidyverse]
+<!-- Examples of how to reference bib entries in-text (check the rmd file): -->
 
-## Sections cross-referencing
+<!-- - `tidyverse` reference: [@tidyverse] -->
 
-You can cross-reference to sections, so that the link point to the relevant heading (check the rmd file):
+<!-- ## Sections cross-referencing -->
 
-- use `{#section-id}` after heading to label the section followed, where `section-id` is user-defined and acts as the identifier of the section
-- use `\@ref(section-id)` or `\@ref(section-heading)` if there is no identifier, to refer to the section you want to link to
+<!-- You can cross-reference to sections, so that the link point to the relevant heading (check the rmd file): -->
 
-Examples (check rmd file):
+<!-- - use `{#section-id}` after heading to label the section followed, where `section-id` is user-defined and acts as the identifier of the section -->
 
-- this text refers to the appendix A with the heading "Code" (Appendix \@ref(code))
-- this text refers to the section labelled with *id* `vri` (Section \@ref(vri))
-- this text refers to the section "Data Background" (Section \@ref(data-background))
+<!-- - use `\@ref(section-id)` or `\@ref(section-heading)` if there is no identifier, to refer to the section you want to link to -->
 
-*Note this will only show the number of the section, you have to put "Section"/"Appendix" before the `\@ref(...)` as well.*
+<!-- Examples (check rmd file): -->
 
-## Figures/Tables cross-referencing
+<!-- - this text refers to the appendix A with the heading "Code" (Appendix @ref(code)) -->
 
-- use `\@ref(fig:chunk-name)` to refer to figure output by the chunk named as `chunk-name`
-- use `\@ref(tab:chunk-name)` to refer to the table output by the chunk named as `chunk-name`
+<!-- - this text refers to the section labelled with *id* `vri` (Section @ref(vri)) -->
 
-Here is an example plot with caption and its in-text reference (check rmd file):
+<!-- - this text refers to the section "Data Background" (Section @ref(data-background)) -->
 
-- Figure \@ref(fig:example-plot). 
+<!-- *Note this will only show the number of the section, you have to put "Section"/"Appendix" before the `\@ref(...)` as well.* -->
 
-*Note this will only show the number (default format: section-num.figure-num), you have to put "Figure" before the `\@ref(fig:..)` as well.*
+<!-- ## Figures/Tables cross-referencing -->
 
-```{r example-plot, fig.cap="Example plot"}
-# example plot
-# mtcars %>% 
-#   rownames_to_column("car") %>% 
-#   as_tibble() %>% 
-#   ggplot() +
-#   aes(x = factor(cyl), y = disp, colour = factor(cyl)) +
-#   geom_boxplot()
-```
+<!-- - use `\@ref(fig:chunk-name)` to refer to figure output by the chunk named as `chunk-name` -->
 
-Here is an example table with caption and its in-text reference:
+<!-- - use `\@ref(tab:chunk-name)` to refer to the table output by the chunk named as `chunk-name` -->
 
-- Table \@ref(tab:example-table)
+<!-- Here is an example plot with caption and its in-text reference (check rmd file): -->
 
-*Note this will only show the number (default format: section-num.table-num), you have to put "Table" before the `\@ref(tab:..)` as well.*
+<!-- - Figure @ref(fig:example-plot).  -->
+
+<!-- *Note this will only show the number (default format: section-num.figure-num), you have to put "Figure" before the `\@ref(fig:..)` as well.* -->
+
+<!-- ```{r example-plot, fig.cap="Example plot"} -->
+
+<!-- # example plot -->
+
+<!-- # mtcars %>%  -->
+
+<!-- #   rownames_to_column("car") %>%  -->
+
+<!-- #   as_tibble() %>%  -->
+
+<!-- #   ggplot() + -->
+
+<!-- #   aes(x = factor(cyl), y = disp, colour = factor(cyl)) + -->
+
+<!-- #   geom_boxplot() -->
+
+<!-- ``` -->
+
+<!-- Here is an example table with caption and its in-text reference: -->
+
+<!-- - Table @ref(tab:example-table) -->
+
+<!-- *Note this will only show the number (default format: section-num.table-num), you have to put "Table" before the `\@ref(tab:..)` as well.* -->
 
 ```{r example-table}
 # example table
@@ -120,12 +133,24 @@ Here is an example table with caption and its in-text reference:
 #   scroll_box(height = "300px")
 ```
 
-
 # Executive Summary
 
+This report aims to investigate factors that affected the implementation of the global vaccination rollout during the COVID-19 Pandemic. Specifically, this report investigates the time lag between the 1st and 2nd vaccine doses to quantitatively determine the delay in the vaccinated population achieving full immunity. It is found that the majority of country time lags are between 1-2 months, showing that the multiple dose nature of the vaccine rollout causes a considerable delay in achieving full immunity.
+In addition, the influence of various demographic, socio-economic and health factors on vaccination speed and coverage is algorithmically assessed. We found that the log of cardiovasc disease, GHS index and life satisfaction have the greatest influence on the vaccination rollout index, an index that conveys both speed and coverage of the vaccination rollout. 
+These results can be utilised by epidemiologists or research students to inform their research into how certain factors can be altered to achieve greater success and efficiency with future vaccine rollouts. The analysis in this report has additionally been represented in an interactive Shiny application.
+To ensure clarity in the analysis process, the following schematic diagram shows the steps undertaken to investigate the two main questions:
 
 
-# Data Background
+![Figure 1. The flow chart of the project working process](data/Selection_of_figure.png)
+
+# Background and Motivation
+
+The first COVID-19 vaccine was administered on 8th December 2021 and since then, COVID-19 vaccines have been developed and administered to the public. There has been strong evidence of the success of COVID-19 vaccines in reducing fatalities, severe infections, and hospitalisations (Deb et al., 2021). Given the effectiveness of vaccines, it is appropriate to evaluate  the potential factors affecting speed and coverage of the vaccine rollout. If certain demographic, socio-economic or health factors can be shown to have an influence on vaccine rollout, it can help address efforts to improve vaccine uptake outcomes.
+ 
+One factor that affected the speed at which the vaccinated population was provided full immunity by the COVID-19 vaccines is that the vaccines were designed to be administered in multiple doses. One dose provides partial immunity and, after a length of time, an additional dose is required to achieve full immunity. The delay in achieving full immunity is a key factor in how quickly full immunity can be provided to a population, influencing the effectiveness of a multiple dose rollout.
+
+
+## Data
 
 ```{r data-loadin, warning=FALSE, results='hide'}
 covid_data = read_csv("data/covid_data_latest.csv")
@@ -142,11 +167,19 @@ corruption = read_xlsx("data/CPI2020_GlobalTablesTS_210125.xlsx", sheet=1, skip=
 source("data/ct_model.R")
 ```
 
+The COVID-19 time-series dataset provided by the ‘Our World in Data’ online publication (Ritchie et al, 2022) was the primary dataset analyzed. This dataset contains data on 207 countries, with measured attributes such as COVID-19 cases, deaths, tests, hospitalisations and vaccinations. A COVID vaccination policy dataset (Ritchie et al., 2022) was used  for the analysis in this report, providing time-series data for COVID-19 vaccination availability in 207 countries, represented as a categorical index.
+The following datasets were used to supplement the analysis of the factors affecting the vaccine rollout:
+1. The Global health security (GHS) index data, was sourced from the GHS index repository. It measures the capacity for 195 countries to prepare for pandemics from 2021 to 2022. 
+
+2. ‘Our World in Data: Happiness and Life Satisfaction: (Ortiz-Ospina & Roser, 2022)  dataset contains variables providing measures of happiness and life satisfaction on 160 countries.
+ 
+3. The Corruption Perceptions Index dataset, contains data of perceptions of public sector corruption. The index ranges from 0 to 100, whereby 0 corresponds to maximal corruption. 
 
 
 # Methods
 
 ## Time lag between 1st and 2nd dose {#time-lag}
+
 ```{r}
 # smoother function, returns smoothed column
 
@@ -197,7 +230,6 @@ lagValue <- function(FirstDose, SecondDose, windowsize, p)
   return(which.min(dist_vector))
 }  
 ```
-
 
 ```{r}
 lag_vector_1 <- c()
@@ -283,18 +315,19 @@ total_lag = cbind(t(lag_df_1), t(lag_df_2), t(lag_df_3))
 colnames(total_lag) = c("LagType", "Lag: Euclidean distance", "LagType", "Lag: Manhattan distance", "LagType", "Lag: Minkowksi distance (P=3)")
 ```
 
-
-
 ## Vaccine rollout index (VRI) and variable importance {#vri}
 
 #### Exploration
+
 ```{r}
+# Country list
 countries = c("United States", "India", "Brazil", "France", "United Kingdom", "Russia", 
               "Turkey", "Italy", "Germany", "Spain", "Argentina",
                 "Iran", "Colombia", "Poland", 'Mexico', "Netherlands", 
               "Indonesia", "Ukraine", "South Africa", "Philippines", "Peru", "Belgium",
                 "Czechia", "Japan", "Iran")
 
+# Select certain countreis
 policy_data <- covid_data %>% 
   filter(location %in% countries)
 
@@ -303,6 +336,7 @@ policy <- policy %>% filter(Entity %in% countries)
 policy_data <- policy_data%>% 
   select(iso_code, continent, location, date,new_people_vaccinated_smoothed_per_hundred,  new_people_vaccinated_smoothed, new_vaccinations, new_vaccinations_smoothed, new_vaccinations_smoothed_per_million, population, people_vaccinated)
 
+# Merge the policy data with the COVID data
 policy_data <- merge(policy_data, policy, by.x = c('iso_code', "date", "location"), by.y = c('Code', 'Day', "Entity"))
 ```
 
@@ -314,11 +348,14 @@ get_slope <- function(country_data, country_policy, country) {
   
   while (i <= length(country_policy$vaccination_policy)) {
     
+    # Select current policy
     current_policy = country_policy$vaccination_policy[i]
     
     if (current_policy > 0 & !is.na(country_policy$people_vaccinated[country_policy$vaccination_policy == current_policy])) {
-      temp_people <- country_data$people_vaccinated[country_data$vaccination_policy == current_policy & !is.na(country_data$people_vaccinated)] / country_data$population[1]
       
+      # Extract the number of people vaccinated
+      temp_people <- country_data$people_vaccinated[country_data$vaccination_policy == current_policy & !is.na(country_data$people_vaccinated)] / country_data$population[1]
+
       temp_index <- 1:length(temp_people)
       
       if (length(temp_index) > 1) {
@@ -359,8 +396,9 @@ for (country in countries) {
   country_slope <- rbind(country_slope, temp_slope)
 }
 
+country_slope$policy <- as.factor(country_slope$policy)
 #plot the
-global <- ggplot(data = country_slope, aes(x = country, y = speed, fill = as.factor(policy))) + 
+global <- ggplot(data = country_slope, aes(x = country, y = speed, fill = policy)) + 
   geom_bar(stat="identity", position=position_dodge()) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + 
   scale_y_sqrt() + 
@@ -369,10 +407,14 @@ global <- ggplot(data = country_slope, aes(x = country, y = speed, fill = as.fac
   ylab("Slope") + 
   labs(fill = "Avalability stage")
 
-global
+ggplotly(global)
 ```
 
 #### VRI
+
+#### Logistic growth model
+
+#### Asympotic regression
 
 ```{r}
 # Example of use, inspect the r_list to see what's included
@@ -381,8 +423,9 @@ r_list1 = ct_model(covid_data, log.y = FALSE, model = "logis")
 r_list2 = ct_model(covid_data, log.y = TRUE, model = "asymp")
 
 vri_data <- data.frame(bind_rows(r_list1$vri_data))
-head(vri_data)
 ```
+
+#### Selecting predictors of VRI and Preprocessing
 
 ```{r}
 # Merge the datasets
@@ -426,6 +469,7 @@ ghs <- ghs %>% mutate(
 joint_data <- merge(joint_data, ghs[,-2],  by.x=c("iso_code"), by.y=c("iso_code"))
 colnames(joint_data)[16] <- "GHS_score"
 ```
+
 ```{r}
 # take log for highly skewed variables
 vri_extra_logged = joint_data %>% select(-population) %>%
@@ -462,7 +506,7 @@ scaled_data_cleaned <- scaled_data %>% filter( !is.na(vri) & !is.na(log_populati
 
 spearman <- cor(scaled_data_cleaned, use="pairwise.complete.obs", method="spearman")
 
-qtlcharts::iplotCorr(
+heatmap <- qtlcharts::iplotCorr(
   scaled_data_cleaned,
   reorder=TRUE,
   corr = spearman,
@@ -475,6 +519,8 @@ qtlcharts::iplotCorr(
 
 scaled_data_cleaned <- scaled_data_cleaned %>% select(-log_population_density)
 ```
+
+#### Random forest regression and variable importance
 
 ```{r warning=FALSE, message=FALSE}
 # hyper parameter grid search (definitely need a bit modify)
@@ -558,13 +604,13 @@ vimp %>%
 
 ```
 
+# Results and Evaluation
 
-# Results
+## Time Lag
 
 ```{r}
 datatable(total_lag, options = list(columnDefs = list(list(className = 'dt-center', targets = "_all"))))
 ```
-
 
 ```{r}
 # Box plots of time lags for all 3 types of time lags measurements
@@ -580,60 +626,281 @@ box <- box %>% layout(title = "Box Plot of Lag Between 1st and 2nd Dose")
 box
 ```
 
+## VRI
+
+#### Results of VRI
+
+#### Results of the optimal RF and variable importance
+
+#### Evaluation
 
 ```{r}
 #VRI 
-start <- min(covid$date[!is.na(covid$people_vaccinated)])
+start <- min(covid_data$date[!is.na(covid_data$people_vaccinated)])
 end <- start %m+% months(4)
 
-r_list4 = ct_model(covid[start <= covid$date & covid$date < end, ], log.y = FALSE, model = "logis")
+r_list4 = ct_model(covid_data[start <= covid_data$date & covid_data$date < end, ], log.y = FALSE, model = "logis")
 temp_data <- data.frame(bind_rows(r_list4$vri_data))
 temp_data <- data.frame(vri4 = temp_data$vri, temp_data %>% select(-vri))
-vri_data <- temp_data
+vri_eva_data <- temp_data
 
 
-start <- min(covid$date[!is.na(covid$people_vaccinated)])
+start <- min(covid_data$date[!is.na(covid_data$people_vaccinated)])
 start <- start %m+% months(4)
 end <- start %m+% months(8)
 
-r_list8 = ct_model(covid[start <= covid$date & covid$date < end, ], log.y = FALSE, model = "logis")
+r_list8 = ct_model(covid_data[start <= covid_data$date & covid_data$date < end, ], log.y = FALSE, model = "logis")
 temp_data <- data.frame(bind_rows(r_list8$vri_data))
 temp_data <- data.frame(vri8 = temp_data$vri, location = temp_data$location)
-vri_data <- merge(vri_data, temp_data, by = "location")
+vri_eva_data <- merge(vri_eva_data, temp_data, by = "location")
 
-start <- min(covid$date[!is.na(covid$people_vaccinated)])
+start <- min(covid_data$date[!is.na(covid_data$people_vaccinated)])
 start <- start %m+% months(8)
 
-r_listf = ct_model(covid[start <= covid$date & covid$date < end, ], log.y = FALSE, model = "logis")
+r_listf = ct_model(covid_data[start <= covid_data$date & covid_data$date < end, ], log.y = FALSE, model = "logis")
 temp_data <- data.frame(bind_rows(r_listf$vri_data))
 temp_data <- data.frame(vrif = temp_data$vri, location = temp_data$location)
-vri_data <- merge(vri_data, temp_data, by = "location")
-
-# Example of use, inspect the r_list to see what's included
-
-head(vri_data)
-
-
-
-
-
-
-
+vri_eva_data <- merge(vri_eva_data, temp_data, by = "location")
 ```
 
+```{r}
+# Merge the datasets
+joint_data <- merge(vri_eva_data,corruption,  by.x=c("iso_code"), by.y=c("ISO3"))
 
-# Discussion & Conclusion {#conclusion}
+joint_data <- merge(joint_data,happiness, by.x=c("iso_code"), by.y=c("Code"))
 
+ghs <- ghs %>% mutate(
+  iso_code = case_when(
+    !is.na(iso_code) ~ iso_code,
+    Country == "Bosnia and Hercegovina" ~ "BIH",
+    Country == "Cabo Verde" ~ "CPV",
+    Country == "Congo (Brazzaville)" ~ "COG",
+    Country == "Congo (Democratic Republic)" ~ "COD",
+    Country == "Côte d'Ivoire" ~ "CIV",
+    Country == "eSwatini" ~ "BIH",
+    Country == "Kyrgyz Republic" ~ "KGZ",
+    Country == "São Tomé and Príncipe" ~ "STP",
+    Country == "St Kitts & Nevis" ~ "KNA",
+    Country == "St Lucia" ~ "LCA",
+    Country == "St Vincent & The Grenadines" ~ "VCT",
+    Country == "United Kingdom" ~ "GBR",
+    Country == "United States of America" ~ "USA"
+  )
+)
+
+
+joint_data <- merge(joint_data, ghs[,-2],  by.x=c("iso_code"), by.y=c("iso_code"))
+colnames(joint_data)[18] <- "GHS_score"
+```
+
+```{r}
+# take log for highly skewed variables
+vri_extra_logged = joint_data %>% select(-population) %>%
+  mutate(
+    across(.cols = c(population_density, aged_65_older, gdp_per_capita, hospital_beds_per_thousand, cardiovasc_death_rate, extreme_poverty, diabetes_prevalence),
+           ~log(.))
+  ) %>% 
+  rename_with(.cols = c(population_density, aged_65_older, gdp_per_capita, hospital_beds_per_thousand, cardiovasc_death_rate, extreme_poverty, diabetes_prevalence),
+              .fn = ~paste0("log_", .))
+
+min_max_norm <- function(x) {
+    (x - min(x,na.rm = TRUE)) / (max(x,na.rm = TRUE) - min(x,na.rm = TRUE))
+}
+
+scaled_data <- data.frame(lapply(vri_extra_logged %>% select(-iso_code, -location, -vri4, -vri8, -vrif), min_max_norm), vri4 = vri_extra_logged$vri4, vri8 = vri_extra_logged$vri8, vrif = vri_extra_logged$vrif)
+
+# Removing NAs:
+scaled_data_cleaned <- scaled_data %>% filter(!is.na(vri4) &
+                                                !is.na(vri8) &
+                                                !is.na(vrif) &
+                                                !is.na(log_population_density) &
+                                                !is.na(log_gdp_per_capita) &
+                                                !is.na(log_aged_65_older)&
+                                                !is.na(log_extreme_poverty)&
+                                                !is.na(human_development_index)&
+                                                !is.na(log_cardiovasc_death_rate)&
+                                                !is.na(log_hospital_beds_per_thousand)) %>%
+  select(c(vri4, vri8, vrif, log_gdp_per_capita,log_aged_65_older,log_population_density,CPI.score.2020,
+           log_extreme_poverty,satisfaction,life_expectancy,human_development_index,
+           log_cardiovasc_death_rate,log_diabetes_prevalence,log_hospital_beds_per_thousand, GHS_score)) 
+
+
+# hyper parameter grid search (definitely need a bit modify)
+mtry <-  seq(2, 12, by = 1)
+num_trees <- c(100,150,200,250,300,350,400,450,500)
+
+timeperiod <- c()
+
+# VRI between 0 to 4 months
+# Manual Search
+grid_param <- expand.grid(.mtry=mtry)
+modellist <- list()
+for (ntree in num_trees) {
+	fit <- train( vri4~., 
+                      data= scaled_data_cleaned %>% select(-vri8, -vrif), 
+                      method='rf', 
+                      tuneGrid=grid_param, 
+	                    ntree= ntree,
+                      trControl=trainControl(method='cv', 
+                        number=3) )
+	key <- toString(ntree)
+	modellist[[key]] <- fit$finalModel
+
+}
+
+
+## COMPARE RESULTS
+lowest_mse_4 <- 1
+model_mse_4 <- modellist[[1]]
+highest_r2_4 <- 0
+model_r2_4 <- modellist[[1]]
+
+for (i in c(1:length(modellist))) {
+
+  result <- predict(modellist[[i]], newdata=scaled_data_cleaned %>% select(-vri4, -vri8, -vrif))
+  result_avg <- mean(scaled_data_cleaned$vri4)
+  mse = mean((scaled_data_cleaned$vri4 - result)^2)
+  r2 = 1 - (sum((scaled_data_cleaned$vri4 - result)^2))/(sum((scaled_data_cleaned$vri4 - result_avg)^2))
+  if (highest_r2_4 < r2){
+     highest_r2_4 = r2
+     model_r2_4 = modellist[[i]]
+  }
+  if (lowest_mse_4 > mse) {
+    lowest_mse_4 = mse
+    model_mse_4 = modellist[[i]]
+  }
+ 
+}
+
+
+# VRI between 4 to 8 months
+
+# Manual Search
+grid_param <- expand.grid(.mtry=mtry)
+modellist <- list()
+for (ntree in num_trees) {
+	fit <- train( vri8~., 
+                      data= scaled_data_cleaned %>% select(-vri4, -vrif), 
+                      method='rf', 
+                      tuneGrid=grid_param, 
+	                    ntree= ntree,
+                      trControl=trainControl(method='cv', 
+                        number=3) )
+	key <- toString(ntree)
+	modellist[[key]] <- fit$finalModel
+
+}
+
+
+## COMPARE RESULTS
+
+lowest_mse_8 <- 1
+model_mse_8 <- modellist[[1]]
+highest_r2_8 <- 0
+model_r2_8 <- modellist[[1]]
+
+for (i in c(1:length(modellist))) {
+
+  result <- predict(modellist[[i]], newdata=scaled_data_cleaned %>% select(-vri4, -vri8, -vrif))
+  result_avg <- mean(scaled_data_cleaned$vri8)
+  mse = mean((scaled_data_cleaned$vri8 - result)^2)
+  r2 = 1 - (sum((scaled_data_cleaned$vri8 - result)^2))/(sum((scaled_data_cleaned$vri8 - result_avg)^2))
+  if (highest_r2_8 < r2){
+     highest_r2_8 = r2
+     model_r2_8 = modellist[[i]]
+  }
+  if (lowest_mse_8 > mse) {
+    lowest_mse_8 = mse
+    model_mse_8 = modellist[[i]]
+  }
+ 
+}
+
+
+# VRI between 8 months to latest date
+
+# Manual Search
+grid_param <- expand.grid(.mtry=mtry)
+modellist <- list()
+for (ntree in num_trees) {
+	fit <- train( vrif~., 
+                      data= scaled_data_cleaned %>% select(-vri8, -vri4), 
+                      method='rf', 
+                      tuneGrid=grid_param, 
+	                    ntree= ntree,
+                      trControl=trainControl(method='cv', 
+                        number=3) )
+	key <- toString(ntree)
+	modellist[[key]] <- fit$finalModel
+
+}
+
+
+## COMPARE RESULTS
+
+lowest_mse_f <- 1
+model_mse_f <- modellist[[1]]
+highest_r2_f <- 0
+model_r2_f <- modellist[[1]]
+
+for (i in c(1:length(modellist))) {
+
+  result <- predict(modellist[[i]], newdata=scaled_data_cleaned %>% select(-vri4, -vri8, -vrif))
+  result_avg <- mean(scaled_data_cleaned$vrif)
+  mse = mean((scaled_data_cleaned$vrif - result)^2)
+  r2 = 1 - (sum((scaled_data_cleaned$vrif - result)^2))/(sum((scaled_data_cleaned$vrif - result_avg)^2))
+  if (highest_r2_f < r2){
+     highest_r2_f = r2
+     model_r2_f = modellist[[i]]
+  }
+  if (lowest_mse_f > mse) {
+    lowest_mse_f = mse
+    model_mse_f = modellist[[i]]
+  }
+ 
+}
+
+
+vri_evaluation <- data.frame(`Time period` = c("0 to 4 months", "4 to 8 months", "8 months to current"), MSE = c(lowest_mse_4, lowest_mse_8, lowest_mse_f), `R_squared` = c(highest_r2_4, highest_r2_8, highest_r2_f))
+
+vri_eval_table <- datatable(vri_evaluation)
+```
+
+#### Shiny App Results
+
+# Discussion and Limitations {#limitations}
+
+## Time Lag
+
+## VRI
+
+## Limitations
+
+## Feature Improvements
+
+# Conclusion
 
 # Student Contributions
-
 
 # References
 
 ::: {#refs}
 :::
 
-# (APPENDIX) Appendix {-}
+# (APPENDIX) Appendix {.unnumbered}
+
+```{r}
+heatmap
+```
+
+```{r}
+vri_eval_table
+```
+
+```{r}
+#summary(vri_data) 
+# Sorry, I forgot to copy and paste the code in the zoom chat
+```
 
 # Code
 
