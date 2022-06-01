@@ -1,7 +1,7 @@
 ---
 title: "Vaccination Implementation and Socio-economical Factors in COVID-19 Pandemic"
 subtitle: "DATA3888 COVID Report (Group C7)"
-author: '500254239 (Diana), 490152629 (Aurora), 490581874 (Sylvia), 490532430 (Vighnesh), 490397493 (Tina), 500459063 (Harun)'
+author: '500254239 (Diana), 490152629 (Aurora), 490581874 (Sylvia), 490532430 (Vighnesh), 490397493 (Tina), 500459063 (Harun), 500505692 (David)'
 date: "`r format(Sys.time(), '%d %b %Y')`"
 output: 
   bookdown::html_document2:
@@ -32,7 +32,7 @@ div.svg-container {
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
-  echo = TRUE,    # for final report, set to FALSE to hide all code chunks
+  echo = FALSE,    # for final report, set to FALSE to hide all code chunks
   message = FALSE,
   warning = FALSE,
   fig.align = "center",
@@ -360,7 +360,7 @@ ggplotly(global) %>%
   layout(autosize = F, width = '100%', height = '100%')
 ```
 
-#### VRI
+### VRI
 
 An analysis of how factors affect vaccine uptake requires a measure of vaccine uptake.
 Inspired by M.Kazemi's research [@vri], we used a vaccination roll-out index (VRI) to represent both vaccination uptake rate (speed) and coverage in each country. It is defined as
@@ -372,7 +372,7 @@ $d$ is the total number of people vaccinated,
 and $N$ is the total population. 
 The $d/N$ then measures the coverage of vaccination while $r$ measures the speed. To estimate $r$, two methods were undertaken.
 
-#### Logistic growth model
+### Logistic growth model
 
 It is observed that in most countries, the number of people vaccinated roughly follows a logistic growth model, which is consistent with the observations of the aforementioned report [@vri]. Hence, we used a logistic regression to fit the people vaccinated attribute: 
 
@@ -383,7 +383,7 @@ $K$ is the number of people vaccinated at the end of the date recorded (the asym
 $r$ is the vaccination uptake rate. 
 The $r$ is estimated from the inverse of the parameter `scal` of the non-linear least squares model fitted in `R`.
 
-#### Asympotic regression
+### Asympotic regression
 
 Another approach is investigated to estimate the vaccination uptake rate. The log of the people vaccinated attribute is similar to an asymptotic regression, where the rate of change is a function of the log people vaccinated: 
 
@@ -406,12 +406,12 @@ r_list2 = ct_model(covid_data, log.y = TRUE, model = "asymp")
 vri_data <- data.frame(bind_rows(r_list1$vri_data))
 ```
 
-The residual standard error (RSE) was used to assess the fit of the models to the people vaccinated attribute. The mean RSE over all the locations is `r round(mean(unlist(r_list1$rse), na.rm = TRUE), 2)` for the logistic model, which is lower than `r round(mean(unlist(r_list2$rse), na.rm = TRUE), 2)` for the asymptotic regression. Therefore, the logistic model was the most appropriate method for estimating the vaccination uptake parameter.
+The residual standard error (RSE) was used to assess the fit of the models to the people vaccinated attribute. The mean RSE over all the locations is $`r round(mean(unlist(r_list1["rse"]), na.rm = TRUE), 2)`$ for the logistic model, which is lower than $`r round(mean(unlist(r_list2["rse"]), na.rm = TRUE), 2)`$ for the asymptotic regression. (Figure \@ref(fig:rse-boxplot)) Therefore, the logistic model was the most appropriate method for estimating the vaccination uptake parameter.
 
 
-#### Selecting predictors of VRI and Preprocessing
+### Selecting predictors of VRI and Preprocessing
 
-Multiple socio-economic, demographic and health-related factors have been considered as potential predictors of a country’s VRI. [@maleva2021a, @JohnE] The full list of predictors used is documented in the Appendix (Table \@ref(tab:variable-list)). Log transformation is performed to some attributes to mitigate the problem of highly skewed data. The different scales of variables necessitated min-max normalization to restrict all variables to within 0 and 1. 
+Multiple socio-economic, demographic and health-related factors have been considered as potential predictors of a country’s VRI. [@maleva2021a; @JohnE] The full list of predictors used is documented in the Appendix (Table \@ref(tab:variable-list)). Log transformation is performed to some attributes to mitigate the problem of highly skewed data. The different scales of variables necessitated min-max normalization to restrict all variables to within 0 and 1. 
 
 For each predictor, we investigated its relationship with VRI using a scatter plot as well as a Spearman correlation heatmap. All plots are located in the Appendix (Figure \@ref(fig:correlation)). 
 
@@ -509,7 +509,7 @@ heatmap <- qtlcharts::iplotCorr(
 scaled_data_cleaned <- scaled_data_cleaned %>% select(-log_population_density)
 ```
 
-#### Random forest regression and variable importance
+### Random forest regression and variable importance
 
 Random forest (RF) regression is a non-parametric algorithm that can handle feature selection problems with numerous highly correlated variables. [@Dewi2019] The nature of bagging and ensemble techniques used in RF also reduces the likelihood of the model being adversely affected by outliers. Further, the calculation of variable importance in RF covers not only the impact of predictor variables individually but also interactively with other predictor variables. [@importance] Hence, RF is an appropriate algorithm for modeling VRIs with the predictor attributes. The association between predictor attributes and VRI was measured by calculating their conditional permutation importance (CPI). The original permutation importance was measured by the mean decrease in error of a RF before and after permuting its values, reflecting its contribution to modeling the response variable. CPI enhanced the permutation approach whereby the permutation of a predictor will be based on the variable with which it is significantly related to, according to a user-defined threshold ([0,1]), thereby reducing the bias resulting from correlated covariates when computing variable importance. [@importance2]
 
@@ -607,7 +607,7 @@ A hyper-parameter grid search was run, with 5-fold cross-validation, to find the
 
 ## Time Lag
 
-The median time lag of 112 countries was 40.5 days. Cambodia had the smallest time lag value: 18 days. The maximum value was >99 days, the value for multiple countries: Algeria, Congo, Libya, Sri Lanka and Malawi. The interquartile range, a measure of the spread of time lag values, was 31.5 days. The time lag values for individual countries can be seen in Table \@ref(tab:timelag-dtable) below.
+The median time lag of 112 countries was 40.5 days. Cambodia had the smallest time lag value: 18 days. The maximum value was > 99 days, the value for multiple countries: Algeria, Congo, Libya, Sri Lanka and Malawi. The interquartile range, a measure of the spread of time lag values, was 31.5 days. The time lag values for individual countries can be seen in Table \@ref(tab:timelag-dtable) below.
 
 ```{r timelag-dtable}
 # datatable(total_lag, options = list(columnDefs = list(list(className = 'dt-center', targets = "_all"))), caption = "List of different time lags measures for each country.")
@@ -653,7 +653,7 @@ A summary of VRIs are in Table \@ref(tab:vri-result-summary) in the appendix. Th
 
 ### Results of the optimal RF and variable importance
 
-The random forest regressor with optimal hyper-parameters involved building 300 trees with 2 variables considered at a split. The MSE and R squared were approximately $9.38 × 10^{-6}$ and 0.8852 respectively. The top 5 important predictors were: 
+The random forest regressor with optimal hyper-parameters involved building 300 trees with 2 variables considered at a split. The MSE and R squared were approximately $9.38 × 10^{-6}$ and $0.8852$ respectively. The top 5 important predictors were: 
 
 1. log of death rate from cardiovascular disease 
 2. Global Health and Security Index 
@@ -971,6 +971,13 @@ For the report, Vighnesh wrote the executive summary and collaborated with Tina 
 # (APPENDIX) Appendix {.unnumbered}
 
 # VRI {#appendix-vri}
+
+## Regression model goodness-of-fit (for $r$ estimation)
+
+```{r rse-boxplot, fig.cap="RSE comparison of logistic vs asymptotic model."}
+boxplot(unlist(r_list1$rse), unlist(r_list2$rse), names = c("Logistic Growth Model", "Asymptotic Regression"), main = "Residual Standard Errors of Fitted Models", xlab = "Model", ylab = "Log Residual Standard Error (RSE)", log = "y")
+```
+
 
 ## All predictors used
 
