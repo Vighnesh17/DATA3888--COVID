@@ -393,7 +393,7 @@ The residual standard error (RSE) was used to assess the fit of the models to th
 
 #### Selecting predictors of VRI and Preprocessing
 
-Multiple socio-economic, demographic and health-related factors have been considered as potential predictors of a country’s VRI. [@maleva2021a, @JohnE] The full list of predictors used is documented in the Appendix (Table \@ref(tab:predictors)). Log transformation is performed to some attributes to mitigate the problem of highly skewed data. The different scales of variables necessitated min-max normalization to restrict all variables to within 0 and 1. 
+Multiple socio-economic, demographic and health-related factors have been considered as potential predictors of a country’s VRI. [@maleva2021a, @JohnE] The full list of predictors used is documented in the Appendix (Table \@ref(tab:variable-list)). Log transformation is performed to some attributes to mitigate the problem of highly skewed data. The different scales of variables necessitated min-max normalization to restrict all variables to within 0 and 1. 
 
 For each predictor, we investigated its relationship with VRI using a scatter plot as well as a Spearman correlation heatmap. All plots are located in the Appendix (Figure \@ref(fig:correlation)). 
 
@@ -497,7 +497,8 @@ Random forest (RF) regression is a non-parametric algorithm that can handle feat
 
 
 ```{r warning=FALSE, message=FALSE}
-# hyper parameter grid search (definitely need a bit modify)
+# hyper parameter grid search 
+## The importance results are produced on mac
 mtry <-  seq(2, 6, by = 1)
 num_trees <- c(100,150,200,250,300,350,400,450,500)
 
@@ -565,9 +566,7 @@ options(scipen=999)
 vimp <- vimp %>%
   arrange(desc(importance)) %>%
   slice(1:5)
-
-
-vimp %>%
+vimp <- vimp %>%
   ggplot(aes(reorder(var,importance), importance)) +
   geom_col(fill="steelblue") +
   coord_flip() +
@@ -576,6 +575,11 @@ vimp %>%
   xlab("Factors in order") +
   ylab("Scaled importance")
 
+
+## The permimp() function is sensitive to operating systems, so we save the results of importance
+# png(filename="importance.png")
+# vimp
+# dev.off()
 ```
 
 A hyper-parameter grid search was run, with 5-fold cross-validation, to find the optimal hyper-parameters for the RF (number of trees and number of features included in the split), based on mean squared error and $R^2$ values. 
@@ -614,21 +618,24 @@ Despite different ways of calculating distance, the model is still able to inter
 
 #### Results of VRI
 
-A summary of VRIs are in Table \@ref(tab:vri-table) in the appendix. The 7 right side outliers were: Nauru(0.152543), Saint Helena(0.143903), Gibraltar(0.052261), Nicaragua(0.043231), San Marino(0.040336), Mongolia(0.039360) and Seychelles(0.039159). The countries with lowest VRIs are Burundi(0.000039), Yemen(0.000180), and Haiti(0.000411). 
+A summary of VRIs are in Table \@ref(tab:vri-result-summary) in the appendix. The 7 right side outliers (\@ref(fig:vri-bplot)) were: Nauru(0.152543), Saint Helena(0.143903), Gibraltar(0.052261), Nicaragua(0.043231), San Marino(0.040336), Mongolia(0.039360) and Seychelles(0.039159). The countries with lowest VRIs are Burundi(0.000039), Yemen(0.000180), and Haiti(0.000411). 
 
 #### Results of the optimal RF and variable importance
 
 The random forest regressor with optimal hyper-parameters involved building 300 trees with 2 variables considered at a split. The MSE and R squared were approximately $9.38 × 10^{-6}$ and 0.8852 respectively. The top 5 important predictors were: 
 
-1.
-2.
-3.
-4.
-5.
+1. log of death rate from cardiovascular disease 
+2, Global Health and Security Index 
+3. life satisfaction 
+4. log of diabetes prevalence
+5. log of life expectancy at birth
 
-```{r importance}
-# barplot figure here
-```
+<center>
+
+![(#fig:importance) The top 5 important variables](importance.png){width=55%,height=55%}
+
+</center>
+
 
 
 #### Evaluation
@@ -696,7 +703,7 @@ joint_data <- merge(joint_data, ghs[,-2],  by.x=c("iso_code"), by.y=c("iso_code"
 colnames(joint_data)[18] <- "GHS_score"
 ```
 
-The dataset between 4 to 8 months has the highest R squared and lowest MSE, 0.83 and 0.000013. For input between 0 to 4 months and 8 to the latest day, R squared is similar: approximately 0.78. However, the 8-month to latest data has the highest MSE, 0.000031, while 0 to 4 months data’s MSE is 0.000014. Accordingly, it is concluded that the time period of input data does affect model output which is most accurate on data between 4 to 8 months.
+The dataset between 4 to 8 months has the highest R squared and lowest MSE, 0.83 and 0.000013. For input between 0 to 4 months and 8 to the latest day, R squared is similar: approximately 0.78. However, the 8-month to latest data has the highest MSE, 0.000031, while 0 to 4 months data’s MSE is 0.000014. Accordingly, it is concluded that the time period of input data does affect model output which is most accurate on data between 4 to 8 months. (Appendix: Table \@ref(tab:vri-eval-table))
 
 ```{r}
 # take log for highly skewed variables
@@ -895,7 +902,7 @@ The results of variable importance show that the death rate of cardiovascular di
 
 1. Some countries, e.g. The Democratic Republic of Congo, have excessive missing data for some variables, resulting in an inability to calculate time lags or VRIs, and thus the analysis cannot cover all countries. This effect gets worse as external datasets are added, containing fewer countries.
 
-2. The discovered factors which affect vaccine uptake may not accurately represent the causal effect, as it’s a model-based result and will change accordingly when new training data, predictors of hyperparameters are given. Further, there may be other factors outside of the used datasets which may also affect vaccine uptake. The problem is that there is no source which contains these variables as comprehensive as the used datasets, which further limits the analysis of the research question. 
+2. The discovered factors which affect vaccine uptake may not accurately represent the causal effect, as it’s a model-based result and will change accordingly when hyperparameters, user-defined threshold and even operating systems vary. Further, there may be other factors outside of the used datasets which may also affect vaccine uptake. The problem is that there is no source which contains these variables as comprehensive as the used datasets, which further limits the analysis of the research question. 
 
 3. With an aim of calculating importance instead of predicting VRI, all the data was used as the training set, which could lead to overfitting. 
 
@@ -944,24 +951,35 @@ Vighnesh - Contributed to the formulation of VRI. I performed some admin tasks s
 # VRI {#appendix-vri}
 
 **All predictors used:**
-```{r predictors}
-# all predictors used, a table
+
+```{r variable-list, fig.cap="Selected variables"}
+var_list <- data.frame(colnames(joint_data)[5:16])
+colnames(var_list) <- "Selected Variable Name"
+var_list
 ```
 
+
 **Correlation matrix between predictors and VRI**
-```{r correlation, fig.cap=""}
-# Spearman correlation
+
+```{r correlation, fig.cap = "Interactive plots of Spearman's correlation heatmap and scatter plots bewteen variables and VRI"}
 heatmap
 ```
 
 **VRI for all countries**
-```{r vri-table}
-vri_eval_table
+
+```{r vri-result-summary, fig.cap="VRI results summary"}
+df_sum <- round(data.frame(unclass(summary(vri_data$vri))),6)
+df_sum
 ```
 
-```{r}
-#summary(vri_data) 
-# Sorry, I forgot to copy and paste the code in the zoom chat
+```{r vri-bplot, fig.cap="Boxplot of VRI values"}
+vri_bplot <- ggplot(vri_data,aes(x="",y=vri)) + geom_boxplot(outlier.colour="blue") + ylab("VRI") + xlab("") + ggtitle("Distribution of VRIs") 
+vri_bplot
+```
+
+**VRI time evaluation results**
+```{r vri-eval-table, fig.cap="VRI time evaluation result"}
+vri_eval_table
 ```
 
 # Code
