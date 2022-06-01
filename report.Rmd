@@ -55,20 +55,21 @@ library(permimp) # for calculating conditional importance in a speedy way
 
 # Executive Summary
 
-This report aims to investigate factors that affected the implementation of the global vaccination rollout during the COVID-19 Pandemic. Specifically, this report investigates the time lag between the 1st and 2nd vaccine doses to quantitatively determine the delay in the vaccinated population achieving full immunity. It is found that the majority of country time lags are between 1-2 months, showing that the multiple dose nature of the vaccine rollout causes a considerable delay in achieving full immunity.
-In addition, the influence of various demographic, socio-economic and health factors on vaccination speed and coverage is algorithmically assessed. We found that the log of cardiovascular disease, GHS index and life satisfaction have the greatest influence on the vaccination rollout index, an index that conveys both speed and coverage of the vaccination rollout. 
-These results can be utilised by epidemiologists or research students to inform their research into how certain factors can be altered to achieve greater success and efficiency with future vaccine rollouts. The analysis in this report has additionally been represented in an interactive Shiny application.
-To ensure clarity in the analysis process, the following schematic diagram shows the steps undertaken to investigate the two main questions:
+This report aims to investigate factors that affected the implementation of the global COVID-19 vaccination rollout. Specifically, this report investigates the time lag between the 1st and 2nd vaccine dose inoculation to quantitatively determine the delay in the vaccinated population achieving full immunity. It is found that the majority of country time lags are between 1-2 months, showing that the multiple dose nature of the vaccine rollout causes a considerable delay in achieving full immunity.
 
+In addition, the influence of various demographic, socio-economic and health factors on vaccination speed and coverage is algorithmically assessed. It is found that the log of cardiovascular disease, GHS index and life satisfaction have the greatest influence on the vaccination rollout index, an index that conveys both speed and coverage of the vaccination rollout. 
 
+These results can be utilised by epidemiologists or research students to inform their research into how to achieve greater success and efficiency with future vaccine rollouts. The analysis in this report has additionally been represented in an interactive Shiny application.
 
-![Figure 1. The flow chart of the project working process](data/Selection_of_figure.png)
+The following schematic diagram (Figure \@ref(fig:flowchart)) shows the steps undertaken to investigate the two main questions in this study:
+
+![(#fig:flowchart) The flow chart of the project working process](data/Selection_of_figure.png){width=70%}
 
 # Background and Motivation
 
-The first COVID-19 vaccine was administered on 8th December 2021 and since then, COVID-19 vaccines have been developed and administered to the public. There has been strong evidence of the success of COVID-19 vaccines in reducing fatalities, severe infections, and hospitalisations [@Deb]. Given the effectiveness of vaccines, it is appropriate to evaluate  the potential factors affecting speed and coverage of the vaccine rollout. If certain demographic, socio-economic or health factors can be shown to have an influence on vaccine rollout, it can help address efforts to improve vaccine uptake outcomes.
- 
-One factor that affected the speed at which the vaccinated population was provided full immunity by the COVID-19 vaccines is that the vaccines were designed to be administered in multiple doses. One dose provides partial immunity and, after a length of time, an additional dose is required to achieve full immunity. The delay in achieving full immunity is a key factor in how quickly full immunity can be provided to a population, influencing the effectiveness of a multiple dose rollout.
+Since the 8th of December 2020, COVID-19 vaccines have been developed and administered to the public. There has been strong evidence of the success of COVID-19 vaccines in reducing fatalities, severe infections, and hospitalisations [@Deb]. Given the effectiveness of vaccines, it is appropriate to evaluate potential factors affecting the speed and coverage of the vaccine rollout. If certain demographic, socio-economic or health factors can be shown to influence vaccine rollout, it can help address efforts to improve vaccine uptake outcomes.
+
+The speed at which the vaccinated population was provided full immunity was affected by the multiple dose design of the vaccine rollout. One dose provides partial immunity and, after a length of time, an additional dose is required to achieve full immunity. The delay in achieving full immunity is a key factor in how quickly full immunity can be provided to a population, influencing the effectiveness of a multiple dose rollout.
 
 
 ## Data
@@ -88,22 +89,26 @@ corruption = read_xlsx("data/CPI2020_GlobalTablesTS_210125.xlsx", sheet=1, skip=
 source("data/ct_model.R")
 ```
 
-The COVID-19 time-series dataset provided by the ‘Our World in Data’ online publication [@owidcoronavirus] was the primary dataset analyzed. This dataset contains data on 207 countries, with measured attributes such as COVID-19 cases, deaths, tests, hospitalisations and vaccinations. A COVID vaccination policy dataset [@owidcoronavirus] was used  for the analysis in this report, providing time-series data for COVID-19 vaccination availability in 207 countries, represented as a categorical index.
-The following datasets were used to supplement the analysis of the factors affecting the vaccine rollout:
-1. The Global health security (GHS) index data, was sourced from the GHS index repository. It measures the capacity for 195 countries to prepare for pandemics from 2021 to 2022. 
+The COVID-19 time-series dataset provided by the ‘Our World in Data’ online publication [@owidcoronavirus] was the primary dataset analysed. This dataset contains data on 207 countries, with measured attributes such as COVID-19 cases, deaths, tests and vaccinations. A COVID vaccination policy dataset from the same source [@owidcoronavirus] was also explored in this report, providing time-series data for COVID-19 vaccination availability in 207 countries, represented as a categorical index.
 
-2. ‘Our World in Data: Happiness and Life Satisfaction: (Ortiz-Ospina & Roser, 2022)  dataset contains variables providing measures of happiness and life satisfaction on 160 countries.
+The following datasets were used to provide predictive factors for the vaccine rollout:
+
+1. The Global health security (GHS) index data, was sourced from the GHS index repository. It measures the capacity for 195 countries to prepare for pandemics from 2021 to 2022. [@ghs]
+
+2. ‘Our World in Data: Happiness and Life Satisfaction' dataset contains variables providing measures of happiness and life satisfaction on 160 countries. [@owidhappinessandlifesatisfaction]
  
-3. The Corruption Perceptions Index dataset contains data of perceptions of public sector corruption. The index ranges from 0 to 100, whereby 0 corresponds to maximal corruption. 
+3. The Corruption Perceptions Index dataset contains data of perceptions of public sector corruption. The index ranges from 0 to 100, whereby 0 corresponds to maximal corruption. [@cpi]
 
 
 # Methods
 
 ## Time lag between 1st and 2nd dose {#time-lag}
+
 To calculate the time lag between a vaccinated population receiving the 1st and 2nd vaccine dose, the distance/difference in days between the people vaccinated (at least 1 vaccine dose) and people fully vaccinated (2 vaccine doses) time-series attributes was calculated. This was achieved by continuously shifting the time-series attribute curves until the curves, which both follow logistic functions, are roughly overlapping. When overlapping occurs, the distance between the two time-series attributes is minimized. The distance that will be used in this analysis is Euclidean distance. The number of times the curves need to be shifted to achieve minimal distance is the difference in days between the two time-series attributes.
  
 The time lag will be calculated for each country, during the period of the 1st of February 2021 to the 1st of August 2021, except for a subset of countries that do not have a population greater than 1,500,000 people and whose data on vaccine uptake is not adequate.
-```{r}
+
+```{r smoother}
 # smoother function, returns smoothed column
 
 Lowess <- function(data, f) {
@@ -154,9 +159,7 @@ lagValue <- function(FirstDose, SecondDose, windowsize, p)
 }  
 ```
 
-
-
-```{r}
+```{r timelag}
 lag_vector_1 <- c()
 lag_vector_2 <- c()
 lag_vector_3 <- c()
@@ -245,9 +248,9 @@ colnames(total_lag) = c("LagType", "Lag: Euclidean distance", "LagType", "Lag: M
 
 ### Exploration
 
-The vaccine availability policy data for each country contains an index representing which groups of people can access vaccines, with larger index values representing greater access. For each stage of availability, the speed of vaccination was derived using the slope of the number of people vaccinated over time in each period. As evident in the  bar chart \@ref(fig:availability_graph)  above, stages 3 and 4 have the highest speed and stage 5 has a lower speed. Despite stage 5 allowing greater access, this decrease in vaccination speed can be attributed to a significant proportion of the population being already vaccinated in stages 3 and 4. Greater availability doesn’t correlate with higher vaccination speed. Rather, there are other factors that affect vaccination uptake.
+The vaccine availability policy data for each country contains an index representing which groups of people can access vaccines, with larger index values representing greater access. For each stage of availability, the speed of vaccination was derived using the slope of the number of people vaccinated over time in each period. As evident in the bar chart (Figure \@ref(fig:availability-graph)) below, stages 3 and 4 have the highest speed and stage 5 has a lower speed. Despite stage 5 allowing greater access, this decrease in vaccination speed can be attributed to a significant proportion of the population being already vaccinated in stages 3 and 4. Greater availability doesn’t correlate with higher vaccination speed. Rather, there are other factors that affect vaccination uptake.
 
-```{r}
+```{r policy-clean}
 # Country list
 countries = c("United States", "India", "Brazil", "France", "United Kingdom", "Russia", 
               "Turkey", "Italy", "Germany", "Spain", "Argentina",
@@ -261,14 +264,14 @@ policy_data <- covid_data %>%
 
 policy <- policy %>% filter(Entity %in% countries)
 
-policy_data <- policy_data%>% 
+policy_data <- policy_data %>% 
   select(iso_code, continent, location, date,new_people_vaccinated_smoothed_per_hundred,  new_people_vaccinated_smoothed, new_vaccinations, new_vaccinations_smoothed, new_vaccinations_smoothed_per_million, population, people_vaccinated)
 
 # Merge the policy data with the COVID data
 policy_data <- merge(policy_data, policy, by.x = c('iso_code', "date", "location"), by.y = c('Code', 'Day', "Entity"))
 ```
 
-```{r}
+```{r get-slope}
 #The 'get slope' function was created to calculate the slope of each country's vaccination policy from stage 1 to stage 5. The slope is calculated using the lm function. This is then extracted and stored in a slope. The slope is essentially the speed of vaccination uptake with respect to the vaccination policy, which is then compared to other countries in a graph.
 get_slope <- function(country_data, country_policy, country) {
   i = 1
@@ -307,8 +310,6 @@ get_slope <- function(country_data, country_policy, country) {
 }
 ```
 
-
-
 ```{r availability-graph, fig.cap = "The vaccination speed for different policy periods for selected countries"}
 country_slope = NULL
 #loop through the countries in the dataset and subset the required variables in another dataframe
@@ -343,9 +344,40 @@ ggplotly(global)
 
 #### VRI
 
+An analysis of how factors affect vaccine uptake requires a measure of vaccine uptake.
+Inspired by M.Kazemi's research [@vri], we used a vaccination roll-out index (VRI) to represent both vaccination uptake rate (speed) and coverage in each country. It is defined as
+
+$$VRI=r\cdot \frac{d}{N} \quad$$
+
+whereby, $r$ is the vaccination uptake rate, 
+$d$ is the total number of people vaccinated, 
+and $N$ is the total population. 
+The $d/N$ then measures the coverage of vaccination while $r$ measures the speed. To estimate $r$, two methods were undertaken.
+
 #### Logistic growth model
 
+It is observed that in most countries, the number of people vaccinated roughly follows a logistic growth model, which is consistent with the observations of the aforementioned report [@vri]. Hence, we used a logistic regression to fit the people vaccinated attribute: 
+
+$$c(t) = \frac{K}{1+a{e}^{-rt}}$$
+
+where $c(t)$ is the number of people vaccinated as a function of time $t$, 
+$K$ is the number of people vaccinated at the end of the date recorded (the asymptote) and 
+$r$ is the vaccination uptake rate. 
+The $r$ is estimated from the inverse of the parameter `scal` of the non-linear least squares model fitted in `R`.
+
 #### Asympotic regression
+
+Another approach is investigated to estimate the vaccination uptake rate. The log of the people vaccinated attribute is similar to an asymptotic regression, where the rate of change is a function of the log people vaccinated: 
+
+$$
+\log (c(t)) = K + (c(0) - K) e^{-rt}\\
+\frac{d}{dt} (log(c(t)) = r(K - \log (c(t))
+$$
+
+Here $c(t)$ and $c(0)$ are the same as defined above, 
+$K$ is the y-asymptote level, and 
+$r$ is the vaccine uptake rate. 
+The $r$ is estimated from the exponential of the parameter `lrc` of the non-linear least squares model fitted in `R`.
 
 ```{r}
 # Example of use, inspect the r_list to see what's included
@@ -356,7 +388,14 @@ r_list2 = ct_model(covid_data, log.y = TRUE, model = "asymp")
 vri_data <- data.frame(bind_rows(r_list1$vri_data))
 ```
 
+The residual standard error (RSE) was used to assess the fit of the models to the people vaccinated attribute. The mean RSE over all the locations is `r round(mean(unlist(r_list1$rse), na.rm = TRUE), 2)` for the logistic model, which is lower than `r round(mean(unlist(r_list2$rse), na.rm = TRUE), 2)` for the asymptotic regression. Therefore, the logistic model was the most appropriate method for estimating the vaccination uptake parameter.
+
+
 #### Selecting predictors of VRI and Preprocessing
+
+Multiple socio-economic, demographic and health-related factors have been considered as potential predictors of a country’s VRI. [@maleva2021a, @JohnE] The full list of predictors used is documented in the Appendix (Table \@ref(tab:predictors)). Log transformation is performed to some attributes to mitigate the problem of highly skewed data. The different scales of variables necessitated min-max normalization to restrict all variables to within 0 and 1. 
+
+For each predictor, we investigated its relationship with VRI using a scatter plot as well as a Spearman correlation heatmap. All plots are located in the Appendix (Figure \@ref(fig:correlation)). 
 
 ```{r}
 # Merge the datasets
@@ -400,6 +439,7 @@ ghs <- ghs %>% mutate(
 joint_data <- merge(joint_data, ghs[,-2],  by.x=c("iso_code"), by.y=c("iso_code"))
 colnames(joint_data)[16] <- "GHS_score"
 ```
+
 
 ```{r}
 # take log for highly skewed variables
@@ -452,6 +492,9 @@ scaled_data_cleaned <- scaled_data_cleaned %>% select(-log_population_density)
 ```
 
 #### Random forest regression and variable importance
+
+Random forest (RF) regression is a non-parametric algorithm that can handle feature selection problems with numerous highly correlated variables. [@Dewi2019] The nature of bagging and ensemble techniques used in RF also reduces the likelihood of the model being adversely affected by outliers. Further, the calculation of variable importance in RF covers not only the impact of predictor variables individually but also interactively with other predictor variables. [@importance] Hence, RF is an appropriate algorithm for modeling VRIs with the predictor attributes. The association between predictor attributes and VRI was measured by calculating their conditional permutation importance (CPI). The original permutation importance was measured by the mean decrease in error of a RF before and after permuting its values, reflecting its contribution to modeling the response variable. CPI enhanced the permutation approach whereby the permutation of a predictor will be based on the variable with which it is significantly related to, according to a user-defined threshold ([0,1]), thereby reducing the bias resulting from correlated covariates when computing variable importance. [@importance2]
+
 
 ```{r warning=FALSE, message=FALSE}
 # hyper parameter grid search (definitely need a bit modify)
@@ -535,15 +578,22 @@ vimp %>%
 
 ```
 
+A hyper-parameter grid search was run, with 5-fold cross-validation, to find the optimal hyper-parameters for the RF (number of trees and number of features included in the split), based on mean squared error and $R^2$ values. 
+
+
 # Results and Evaluation
 
 ## Time Lag
 
-```{r}
-datatable(total_lag, options = list(columnDefs = list(list(className = 'dt-center', targets = "_all"))))
+The median time lag of 112 countries was 40.5 days. Cambodia had the smallest time lag value: 18 days. The maximum value was >99 days, the value for multiple countries: Algeria, Congo, Libya, Sri Lanka and Malawi. The interquartile range, a measure of the spread of time lag values, was 31.5 days. The time lag values for individual countries can be seen in Table \@ref(tab:timelag-dtable) below.
+
+```{r timelag-dtable}
+datatable(total_lag, options = list(columnDefs = list(list(className = 'dt-center', targets = "_all"))), caption = "List of different time lags measures for each country.")
 ```
 
-```{r}
+In evaluating the stability of the time lag derivation model, it is noted that the model is stable for different distance metrics. Results for time lags with distance metrics like Manhattan distance and Minkowski distance (p parameter equals 3) yielded similar results to the Euclidean distance time lags. (Figure \@ref(fig:timelag-boxplot))
+
+```{r timelag-boxplot, fig.cap="Boxplot results of time lags for each distance metric."}
 # Box plots of time lags for all 3 types of time lags measurements
 
 total_lag_df <- as.data.frame(total_lag)
@@ -557,17 +607,35 @@ box <- box %>% layout(title = "Box Plot of Lag Between 1st and 2nd Dose")
 box
 ```
 
+Despite different ways of calculating distance, the model is still able to interpret the same roughly equivalent distances between the two time-series attributes.
+
+
 ## VRI
 
 #### Results of VRI
 
+A summary of VRIs are in Table \@ref(tab:vri-table) in the appendix. The 7 right side outliers were: Nauru(0.152543), Saint Helena(0.143903), Gibraltar(0.052261), Nicaragua(0.043231), San Marino(0.040336), Mongolia(0.039360) and Seychelles(0.039159). The countries with lowest VRIs are Burundi(0.000039), Yemen(0.000180), and Haiti(0.000411). 
+
 #### Results of the optimal RF and variable importance
+
+The random forest regressor with optimal hyper-parameters involved building 300 trees with 2 variables considered at a split. The MSE and R squared were approximately $9.38 × 10^{-6}$ and 0.8852 respectively. The top 5 important predictors were: 
+
+1.
+2.
+3.
+4.
+5.
+
+```{r importance}
+# barplot figure here
+```
+
 
 #### Evaluation
 
 Evaluation of model accuracy involved assessing the mean square error (MSE) and the coefficient of determination $R^2$. The MSE measures the closeness between prediction and observed value while $R^2$ represents the proportion of the predictors’ variance explained by our index VRI. The lower the MSE and the higher the $R^2$, the more accurate the model.
 
-```{r}
+```{r vri-eval-time}
 #VRI 
 start <- min(covid_data$date[!is.na(covid_data$people_vaccinated)])
 end <- start %m+% months(4)
@@ -596,7 +664,7 @@ temp_data <- data.frame(vrif = temp_data$vri, location = temp_data$location)
 vri_eva_data <- merge(vri_eva_data, temp_data, by = "location")
 ```
 
-As VRI is highly related to time, the time period chosen can affect results. This concept is explored as: Input affects Output”. The period of time between commencement of vaccinations and the last day recorded varies from 1 to 1.5 years in the covid dataset. Therefore, the dataset was separated into $0-4$ months, $4-8$ months, and $8-latest$ starting on the first day a country had vaccination data. For each selected period, the accuracy was compared using MSE and R squared. 
+As VRI is highly related to time, the time period chosen can affect results. This concept is explored as: Input affects Output”. The period of time between commencement of vaccinations and the last day recorded varies from 1 to 1.5 years in the covid dataset. Therefore, the dataset was separated into $0-4$ months, $4-8$ months, and $8-\text{latest}$ starting on the first day a country had vaccination data. For each selected period, the accuracy was compared using MSE and R squared. 
 
 ```{r}
 # Merge the datasets
@@ -803,51 +871,67 @@ vri_evaluation <- data.frame(`Time period` = c("0 to 4 months", "4 to 8 months",
 vri_eval_table <- datatable(vri_evaluation)
 ```
 
+
 #### Shiny App Results
+
+The results of our project and some analysis processes are illustrated on the Shiny app deployed on [shinyapps.io](https://dcusyd.shinyapps.io/covidApp/). Two layers of heatmap are plotted on an interactive world map to visualise the comparison of results between locations. The “VRI Overlay” shows the VRI values (scaled into 0-1 using logistic regression) and the “Time Lag Overlay” shows the time lags (days) between different locations. Hover-over labels are used to display the specific values. The panel on the right shows the scaled VRI values for all locations and the table can be sorted to show the locations with the highest/lowest scaled VRI. The bottom panel shows location-specific plots and the time lag table for all locations. Users can either click a country on the map or search and select a country from the dropdown menu to see the location-specific information (default Australia). The time lag graph (left) shows the trends of people vaccinated and people fully vaccinated, so that the user can see if the time lag between the two doses changes with time and compare our calculated time lag with the graph. The vaccination trend graph (right) allows the user to see how well our logistic growth model fits the people vaccinated time series so that they can determine how reliable the VRI is.
+
 
 # Discussion and Limitations {#limitations}
 
 ## Time Lag
 
+The results of the time lags between 1st and 2nd vaccine doses convey that there is significant variation between countries. This can be mainly attributed to what brand of vaccines the majority of a country’s population is inoculated with. Different brands of vaccines had different recommended waiting times between doses e.g. the AstraZeneca vaccine had a longer waiting period than the Pfizer and Moderna vaccines (12 weeks vs. 3 & 4 weeks). Accordingly, the United Kingdom, whose population is mostly inoculated with the AstraZeneca vaccine, has a time lag of 76 days, in contrast with the United States 28 day time lag, whose population is mostly inoculated with the Pfizer and Moderna vaccines. 
+
+76 days is a substantial amount of time to be without full immunity, especially in contrast with 28 days. Hence, the judgment can be made that if the United Kingdom, or other countries that had long time lags due to the AstraZeneca vaccine, wanted to achieve full immunity of their vaccinated population as quickly as possible, they should have invested in Pfizer/Moderna vaccines.
+
+Countries within the minimum value and quartile 1 had time lags of 18 days to 30.5 days. This is 3-4 weeks and reflects the expected time lag of countries who inoculated their populations with mostly Pfizer and Moderna vaccines. While these time lags are considerably shorter than other countries, they still reveal that there is a considerable period of time in which vaccinated people are still not fully protected from COVID-19. This identifies a flaw with the multiple dose rollout and encourages epidemiologists and researchers to explore methods of reducing the waiting periods with a multiple dose rollout or producing single dose vaccines that provide full immunity.
+
 ## VRI
+
+The results of variable importance show that the death rate of cardiovascular disease has the most influence on the VRI, distinctly more important than other predictors. This reflects that countries that perform comparatively well in managing health issues like cardiovascular disease are likely to perform well in ensuring their population is immunized. Global Health and Security Index and Life satisfaction are the next two most important variables indicating that countries that are prepared for epidemics and where the majority of people are satisfied with their lives will have better vaccine rollout outcomes
 
 ## Limitations
 
-1. Some countries, e.g. Democratic Republic of Congo, have excessive missing data for some variables, resulting in an inability to calculate time lags or VRIs, and thus the analysis cannot cover all countries. This effect gets worse as external datasets are added, containing less countries.
+1. Some countries, e.g. The Democratic Republic of Congo, have excessive missing data for some variables, resulting in an inability to calculate time lags or VRIs, and thus the analysis cannot cover all countries. This effect gets worse as external datasets are added, containing fewer countries.
 
 2. The discovered factors which affect vaccine uptake may not accurately represent the causal effect, as it’s a model-based result and will change accordingly when new training data, predictors of hyperparameters are given. Further, there may be other factors outside of the used datasets which may also affect vaccine uptake. The problem is that there is no source which contains these variables as comprehensive as the used datasets, which further limits the analysis of the research question. 
 
 3. With an aim of calculating importance instead of predicting VRI, all the data was used as the training set, which could lead to overfitting. 
 
 ## Future Improvements
+
 Collecting additional datasets containing other factors to test their effect on the vaccine uptake, such as type of vaccine, people’s trust in health institutions, public perception and individual lifestyle. Exploring more factors will give us a more holistic analysis on vaccination uptake.
 
 The conditional permutation importance is sensitive to the choice of hyper-parameter and user-defined threshold. Though it’s proved to be hard to set sensible values, one future improvement is to evaluate how changes on these pre-set values affect the final result. 
 
 
 # Conclusion
-The majority of time lags between 1st and 2nd doses are within 1-2 months, demonstrating that there is a considerable delay in achieving full immunity with a multiple dose rollout.
-There is also a significant spread in time lag values, showing that due to factors like choice of vaccine brand, the vaccinated populations of certain countries were exposed to longer time periods of vulnerability.
-The analysis on the influence of demographic, socio-economic and health factors on vaccination speed and coverage found the following factors most influential - the log of cardiovasc disease, GHS index and life satisfaction. This suggests that positive outcomes regarding these factors will correlate with positive vaccination outcomes.
+
+The conditional permutation importance is sensitive to the choice of hyper-parameter and user-defined threshold. Though it’s proved to be hard to set sensible values, one future improvement is to evaluate how changes on these pre-set values affect the final result. 
+
+The analysis on the influence of demographic, socio-economic and health factors on vaccination speed and coverage found the following factors most influential - the log of cardiovascular disease, GHS index and life satisfaction. This suggests that positive outcomes regarding these factors will correlate with positive vaccination outcomes.
+
 The constructed Shiny application allows users to compare time lags between countries, trends in vaccination speed and availability of vaccines and the accuracy of the measures of vaccine uptake.
+
 Future studies can build on this report by integrating new and more diverse data to explore more relationships between vaccination outcomes and various health, demographic and socio-economic factors.
 
-## Student Contributions
+# Student Contributions
 
 David - Contributed to development of ideas for both sub-questions. Formulating and coding the model for calculating the time lags between 1st and 2nd vaccine doses. Coding the visualisations/figures of the results of the time lag model. Data cleaning/pre-processing for the derivation of VRI. Contributed to writing and editing multiple sections of the report and presentation, most notably the time lag method and results section.
 
 Diana - All Shiny app code (reused some code from David when calculating time lag). Code for people vaccinated trend model fitting, $r$ calculation, VRI calculation, and RSE calculation for logistic growth model and asymptotic regression, all done using my function `ct_model` (included in `data/ct_model.R`). Writing the goodness-of-fit evaluation for these two models and the Shiny app part in this report. 
 
 
-Tina - ​​Responsible for the administration role in the team, such as scheduling meetings, and keeping track of meeting minutes.  collaborated with Aurora on the data exploration on the Vaccination Roll Out index, which was calculating and visualising the speed of vaccination policy stage of the countries. Also Worked on formulating the presentation slides and providing the introduction and background of the dataset. For the report, I helped formulate the overall structure and wrote the background, data sourcing and edited various sections of the report.
+Tina - Responsible for the administration role in the team, such as scheduling meetings, and keeping track of meeting minutes.  collaborated with Aurora on the data exploration on the Vaccination Roll Out index, which was calculating and visualising the speed of vaccination policy stage of the countries. Also Worked on formulating the presentation slides and providing the introduction and background of the dataset. For the report, I helped formulate the overall structure and wrote the background, data sourcing and edited various sections of the report.
 
 Sylvia - Researching and proposing the idea of VRI. Sourcing and data cleaning the corruption and satisfaction datasets. Merging all datasets. Coding the RF, including a grid search with 5-fold cv. Calculating and plotting the variable importance. Writing the methods, results and discussion for selecting variables, RF, variable importance and VRI values.
 
-Aurora - Explored methods and models in the early stage, some of them are included in the GitHub branch. Did the exploration of VRI based on vaccination availability policy, and wrote related section. Helped refine the VRI model and code its “Inputs affect Outputs” evaluation. Wrote the evaluation strategy for VRI model in this report. I also drew the Feature selection figure, designed and created the presentation slides, and combining everyone’s code in the final Rmarkdown file.
+Aurora - Explored methods and models in the early stage, some of them are included in the GitHub branch. Did the exploration of VRI based on vaccination availability policy, and wrote a related section. Helped refine the VRI model and code its “Inputs affect Outputs” evaluation. Wrote the evaluation strategy for VRI model in this report. I also drew the Feature selection figure, designed and created the presentation slides, and combined everyone’s code in the final Rmarkdown file.
 
 Harun - Worked on idea for clustering VRI with countries which was not used. Brainstormed and discussed initial ideas with the team and provided ideas on how to approach the question and overall supported the team. Worked on proofreading the report along with writing the limitations and future improvement sections. 
 
-Vighnesh - Contributed to the formulation of VRI. I performed some admin tasks such as maintaining and creating the GitHub and scheduling some meetings to discuss work. Initially i did alot of data cleaning for the OWID data by dividing breaking down the time series information .I came up with our first idea “Creating a preparedness score for each country in COVID” that we decided not to use. I added the Shiny About page to provide metadata to the user.I also helped in the sourcing of external datasets like GHS Index. Lastly I wrote the background information, motivation and Executive Summary for the report.
+Vighnesh - Contributed to the formulation of VRI. I performed some admin tasks such as maintaining and creating the GitHub and scheduling some meetings to discuss work. Initially, I did a lot of data cleaning for the OWID data by dividing and breaking down the time series information. I came up with our first idea “Creating a preparedness score for each country in COVID” that we decided not to use. I added the Shiny About page to provide metadata to the user. I also helped in the sourcing of external datasets like GHS Index. Lastly, I wrote the background information, motivation and Executive Summary for the report.
 
 
 # References
@@ -857,11 +941,21 @@ Vighnesh - Contributed to the formulation of VRI. I performed some admin tasks s
 
 # (APPENDIX) Appendix {.unnumbered}
 
-```{r}
+# VRI {#appendix-vri}
+
+**All predictors used:**
+```{r predictors}
+# all predictors used, a table
+```
+
+**Correlation matrix between predictors and VRI**
+```{r correlation, fig.cap=""}
+# Spearman correlation
 heatmap
 ```
 
-```{r}
+**VRI for all countries**
+```{r vri-table}
 vri_eval_table
 ```
 
@@ -879,6 +973,6 @@ labs = setdiff(labs, c("setup", "get-labels"))
 # can be used later if want all code in one chunk
 ```
 
-```{r all-code, ref.label="example-plot", echo=TRUE, eval=FALSE}
+```{r all-code, ref.label="labs", echo=TRUE, eval=FALSE}
 # only example-plot code chunk
 ```
