@@ -1,7 +1,7 @@
 ---
 title: "Vaccination Implementation and Socio-economical Factors in COVID-19 Pandemic"
 subtitle: "DATA3888 COVID Report (Group C7)"
-author: '500254239'
+author: '500254239 (Diana), 490152629 (Aurora), 490581874 (Sylvia), 490532430 (Vighnesh), 490397493 (Tina), 500459063 (Harun)'
 date: "`r format(Sys.time(), '%d %b %Y')`"
 output: 
   bookdown::html_document2:
@@ -956,20 +956,11 @@ Future studies can build on this report by integrating new and more diverse data
 
 # Student Contributions
 
-David - Contributed to development of ideas for both sub-questions. Formulating and coding the model for calculating the time lags between 1st and 2nd vaccine doses. Coding the visualisations/figures of the results of the time lag model. Data cleaning/pre-processing for the derivation of VRI. Contributed to writing and editing multiple sections of the report and presentation, most notably the time lag method and results section.
+Everyone researched and came up with ideas during exploration, some of which were recorded on our [Github repository](https://github.com/Vighnesh17/DATA3888--COVID) . David mainly developed the idea for the sub-questions while Sylvia researched and proposed  ideas for VRI. 
 
-Diana - All Shiny app code (reused some code from David when calculating time lag). Code for people vaccinated trend model fitting, $r$ calculation, VRI calculation, and RSE calculation for logistic growth model and asymptotic regression, all done using my function `ct_model` (included in `data/ct_model.R`). Writing the goodness-of-fit evaluation for these two models and the Shiny app part in this report. 
+The model of Time lag was mainly coded and formulated by David, including visualizing and evaluating the results. Aurora and Tina collaborated on the data exploration on VRI based on vaccination availability, while Sylvia built the Random Forest model and calculated the variable importance with data cleaning helped by Vighnesh. Diana further refined the r estimation models, their evaluation, and the VRI calculation. Aurora evaluated the model on the effect of input time selection. Harun created clusters for VRI. Diana wrote all the Shiny app code and Vighnesh and Sylvia wrote the About page.
 
-
-Tina - Responsible for the administration role in the team, such as scheduling meetings, and keeping track of meeting minutes.  collaborated with Aurora on the data exploration on the Vaccination Roll Out index, which was calculating and visualising the speed of vaccination policy stage of the countries. Also Worked on formulating the presentation slides and providing the introduction and background of the dataset. For the report, I helped formulate the overall structure and wrote the background, data sourcing and edited various sections of the report.
-
-Sylvia - Researching and proposing the idea of VRI. Sourcing and data cleaning the corruption and satisfaction datasets. Merging all datasets. Coding the RF, including a grid search with 5-fold cv. Calculating and plotting the variable importance. Writing the methods, results and discussion for selecting variables, RF, variable importance and VRI values.
-
-Aurora - Explored methods and models in the early stage, some of them are included in the GitHub branch. Did the exploration of VRI based on vaccination availability policy, and wrote a related section. Helped refine the VRI model and code its “Inputs affect Outputs” evaluation. Wrote the evaluation strategy for VRI model in this report. I also drew the Feature selection figure, designed and created the presentation slides, and combined everyone’s code in the final Rmarkdown file.
-
-Harun - Worked on idea for clustering VRI with countries which was not used. Brainstormed and discussed initial ideas with the team and provided ideas on how to approach the question and overall supported the team. Worked on proofreading the report along with writing the limitations and future improvement sections. 
-
-Vighnesh - Contributed to the formulation of VRI. I performed some admin tasks such as maintaining and creating the GitHub and scheduling some meetings to discuss work. Initially, I did a lot of data cleaning for the OWID data by dividing and breaking down the time series information. I came up with our first idea “Creating a preparedness score for each country in COVID” that we decided not to use. I added the Shiny About page to provide metadata to the user. I also helped in the sourcing of external datasets like GHS Index. Lastly, I wrote the background information, motivation and Executive Summary for the report.
+For the report, Vighnesh wrote the executive summary and collaborated with Tina on the Background and Data section. David contributed majorly to the time lag and result section. For the VRI, Sylvia wrote the methods, results, and discussion while Aurora wrote about exploration and evaluation. Diana wrote the goodness-of-fit evaluation for the asymptotic model and the Shiny app section. Harun wrote the limitations and future improvements along with proofreading the report.
 
 
 # References
