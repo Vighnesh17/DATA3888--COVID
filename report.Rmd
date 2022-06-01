@@ -1,5 +1,6 @@
 ---
-title: "DATA3888 covid_data Report"
+title: "Vaccination Implementation and Socio-economical Factors in COVID-19 Pandemic"
+subtitle: "DATA3888 COVID Report (Group C7)"
 author: '500254239'
 date: "`r format(Sys.time(), '%d %b %Y')`"
 output: 
@@ -16,6 +17,18 @@ bibliography: [references.bib, references-pkg.bib]
 csl: apa-6th-edition.csl
 nocite: '@*'
 ---
+
+<style>
+/* resize the widget container */
+.plotly { 
+  width: 100% !important;
+}
+
+/* center the widget */
+div.svg-container {
+  margin: auto !important;
+}
+</style>
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
@@ -63,7 +76,11 @@ These results can be utilised by epidemiologists or research students to inform 
 
 The following schematic diagram (Figure \@ref(fig:flowchart)) shows the steps undertaken to investigate the two main questions in this study:
 
-![(#fig:flowchart) The flow chart of the project working process](data/Selection_of_figure.png){width=70%}
+<center>
+
+![(#fig:flowchart) The flow chart of the project working process](data/Selection_of_figure.png){width=90%}
+
+</center>
 
 # Background and Motivation
 
@@ -339,7 +356,8 @@ global <- ggplot(data = country_slope, aes(x = country, y = speed, fill = policy
   ylab("Slope") + 
   labs(fill = "Avalability stage")
 
-ggplotly(global)
+ggplotly(global) %>% 
+  layout(autosize = F, width = '100%', height = '100%')
 ```
 
 #### VRI
@@ -588,8 +606,20 @@ A hyper-parameter grid search was run, with 5-fold cross-validation, to find the
 The median time lag of 112 countries was 40.5 days. Cambodia had the smallest time lag value: 18 days. The maximum value was >99 days, the value for multiple countries: Algeria, Congo, Libya, Sri Lanka and Malawi. The interquartile range, a measure of the spread of time lag values, was 31.5 days. The time lag values for individual countries can be seen in Table \@ref(tab:timelag-dtable) below.
 
 ```{r timelag-dtable}
-datatable(total_lag, options = list(columnDefs = list(list(className = 'dt-center', targets = "_all"))), caption = "List of different time lags measures for each country.")
+# datatable(total_lag, options = list(columnDefs = list(list(className = 'dt-center', targets = "_all"))), caption = "List of different time lags measures for each country.")
+
+total_lag %>% 
+  kbl(caption = "List of different time lags measures for each country.",
+      format = "html", 
+      booktabs = TRUE, 
+      row.names = FALSE, 
+      escape = TRUE,
+      align = "c") %>% 
+  kable_styling(bootstrap_options = c("condensed", "striped", "hover"),
+                position = "center") %>% 
+  scroll_box(height = "400px")
 ```
+<br>
 
 In evaluating the stability of the time lag derivation model, it is noted that the model is stable for different distance metrics. Results for time lags with distance metrics like Manhattan distance and Minkowski distance (p parameter equals 3) yielded similar results to the Euclidean distance time lags. (Figure \@ref(fig:timelag-boxplot))
 
@@ -603,20 +633,21 @@ box <- plot_ly(type = "box")
 box <- box %>% add_boxplot(x = total_lag_df$LagManhattanDistance, boxpoints = "all", jitter = 0.3, name = "Manhattan Distance")
 box <- box %>% add_boxplot(x = total_lag_df$LagEuclideanDistance, boxpoints = "all", jitter = 0.3, name = "Euclidean Distance")
 box <- box %>% add_boxplot(x = total_lag_df$LagMinkowskiDistanceP3, boxpoints = "all", jitter = 0.3, name = "Minkowski Distance (P=3)")
-box <- box %>% layout(title = "Box Plot of Lag Between 1st and 2nd Dose")
+box <- box %>% layout(title = "Box Plot of Lag Between 1st and 2nd Dose", autosize = F, width = '100%', height = '100%')
 box
 ```
+
 
 Despite different ways of calculating distance, the model is still able to interpret the same roughly equivalent distances between the two time-series attributes.
 
 
 ## VRI
 
-#### Results of VRI
+### Results of VRI
 
 A summary of VRIs are in Table \@ref(tab:vri-table) in the appendix. The 7 right side outliers were: Nauru(0.152543), Saint Helena(0.143903), Gibraltar(0.052261), Nicaragua(0.043231), San Marino(0.040336), Mongolia(0.039360) and Seychelles(0.039159). The countries with lowest VRIs are Burundi(0.000039), Yemen(0.000180), and Haiti(0.000411). 
 
-#### Results of the optimal RF and variable importance
+### Results of the optimal RF and variable importance
 
 The random forest regressor with optimal hyper-parameters involved building 300 trees with 2 variables considered at a split. The MSE and R squared were approximately $9.38 × 10^{-6}$ and 0.8852 respectively. The top 5 important predictors were: 
 
@@ -631,7 +662,7 @@ The random forest regressor with optimal hyper-parameters involved building 300 
 ```
 
 
-#### Evaluation
+### Evaluation
 
 Evaluation of model accuracy involved assessing the mean square error (MSE) and the coefficient of determination $R^2$. The MSE measures the closeness between prediction and observed value while $R^2$ represents the proportion of the predictors’ variance explained by our index VRI. The lower the MSE and the higher the $R^2$, the more accurate the model.
 
@@ -872,7 +903,7 @@ vri_eval_table <- datatable(vri_evaluation)
 ```
 
 
-#### Shiny App Results
+### Shiny App Results
 
 The results of our project and some analysis processes are illustrated on the Shiny app deployed on [shinyapps.io](https://dcusyd.shinyapps.io/covidApp/). Two layers of heatmap are plotted on an interactive world map to visualise the comparison of results between locations. The “VRI Overlay” shows the VRI values (scaled into 0-1 using logistic regression) and the “Time Lag Overlay” shows the time lags (days) between different locations. Hover-over labels are used to display the specific values. The panel on the right shows the scaled VRI values for all locations and the table can be sorted to show the locations with the highest/lowest scaled VRI. The bottom panel shows location-specific plots and the time lag table for all locations. Users can either click a country on the map or search and select a country from the dropdown menu to see the location-specific information (default Australia). The time lag graph (left) shows the trends of people vaccinated and people fully vaccinated, so that the user can see if the time lag between the two doses changes with time and compare our calculated time lag with the graph. The vaccination trend graph (right) allows the user to see how well our logistic growth model fits the people vaccinated time series so that they can determine how reliable the VRI is.
 
@@ -973,6 +1004,6 @@ labs = setdiff(labs, c("setup", "get-labels"))
 # can be used later if want all code in one chunk
 ```
 
-```{r all-code, ref.label="labs", echo=TRUE, eval=FALSE}
+```{r all-code, ref.label=labs, echo=TRUE, eval=FALSE}
 # only example-plot code chunk
 ```
