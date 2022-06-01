@@ -329,6 +329,7 @@ get_slope <- function(country_data, country_policy, country) {
 
 ```{r availability-graph, fig.cap = "The vaccination speed for different policy periods for selected countries"}
 country_slope = NULL
+
 #loop through the countries in the dataset and subset the required variables in another dataframe
 for (country in countries) {
   country_data <- policy_data[policy_data$location == country, ]
@@ -346,7 +347,8 @@ for (country in countries) {
 }
 
 country_slope$policy <- as.factor(country_slope$policy)
-#plot the
+
+# plot the graph
 global <- ggplot(data = country_slope, aes(x = country, y = speed, fill = policy)) + 
   geom_bar(stat="identity", position=position_dodge()) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + 
@@ -1056,3 +1058,14 @@ labs = setdiff(labs, c("setup", "get-labels"))
 ```{r all-code, ref.label=labs, echo=TRUE, eval=FALSE}
 # only example-plot code chunk
 ```
+
+
+## lfs Dependency if unable to knit
+If The document isn't knitting it may be because of missing LFS dependency.
+Usage:
+
+Step 1 : Install git LFS. On MAC using "brew install git-lfs:  and for Windows, Git LFS is alreday installed in Git for Windows.
+
+Step 2 : Once in the report directory in the command line type the command "git lfs install"
+
+Step 3 : In the terminal, type "git lfs pull" and then knit.
